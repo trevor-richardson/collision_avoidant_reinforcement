@@ -14,11 +14,6 @@ config.read('../config.ini')
 
 base_dir = config['DEFAULT']['BASE_DIR']
 
-
-'''
-This needs to be called from a specific script in order to
-'''
-
 x_list_of_positions = np.random.normal(0, 1.0, 3000)
 y_list_of_positions = np.random.normal(-12 , 1.0, 3000)
 x_list_of_positions0 = np.random.normal(1, 1.0, 3000)
@@ -111,8 +106,6 @@ def collectImageData(clientID):
 
             #convert the image add to numpy array we collect about 35 images per simulation
             if res==vrep.simx_return_ok:
-                #if we get the image now we need to get the state data this needs to be
-                # print(count, len(list_of_images))
                 ret_code, pos = vrep.simxGetObjectPosition(clientID, base_handle, -1, vrep.simx_opmode_oneshot)
                 ret_code, velo, angle_velo = vrep.simxGetObjectVelocity(clientID, base_handle, vrep.simx_opmode_oneshot)
                 collector.append([pos[0], pos[1], pos[2], velo[0], velo[1], velo[2], action])
@@ -146,10 +139,8 @@ def detectCollisionSignal(clientID):
         pass
 
     if detector[1] == 1:
-        # print ("\nHit")
         return 1
     else:
-        # print ("\nMiss")
         return 0
 
 
@@ -158,7 +149,6 @@ def writeImagesStatesToFiles(image_array, state_array, n_iter, collision_signal)
     #I need a better way to select images from my video -- but for now just getting every tenth image be careful about images late in the game. -- prediction doesnt even help then
     reduced_image = []
     reduced_state = []
-    #do it here
 
     time_dilation = round(np.random.normal(12, 3)) # make sure this system can work independent of the time dilation or hz of images coming in
     if time_dilation < 5:
@@ -172,7 +162,6 @@ def writeImagesStatesToFiles(image_array, state_array, n_iter, collision_signal)
 
     for enumerator in range(len(image_array)):
         if enumerator % time_dilation == 0 and enumerator != 0:
-            #create random number and decide on the enumerator value
             noise = random.uniform(0, 1) #dont grab every video at that exact offset
             if noise < .1:
                 reduced_state.append(state_array[enumerator - 2])
@@ -192,18 +181,13 @@ def writeImagesStatesToFiles(image_array, state_array, n_iter, collision_signal)
                 reduced_image.append(image_array[enumerator])
                 reduced_state.append(state_array[enumerator])
 
-
-
     print("Cluster ", time_dilation, "  size of reduced array img and state ", len(reduced_image), len(reduced_state))
     selected_images = reduced_image[:70]
     selected_states = reduced_state[:70]
-    # print("After slicing  ", len(selected_images))
-            # scipy.misc.imsave(str(enumerator) + 'outfile.png', image_array[enumerator])
 
     video_arr = np.concatenate([arr[np.newaxis] for arr in selected_images])
     video = np.moveaxis(video_arr, -1, 1)
     state = np.asarray(selected_states) #this is ready to be saved!
-    # print("hey bitch ", state_arr.shape)
 
     print (collision_signal)
     print (video.shape)
@@ -212,39 +196,39 @@ def writeImagesStatesToFiles(image_array, state_array, n_iter, collision_signal)
     test_or_train = random.uniform(0, 1)
     if test_or_train < .45:
         if collision_signal:
-            str_name_image = base_dir + '/data_generated/aligned_version/hit_image/' + str(n_iter) + 'collision3'
-            str_name_state = base_dir + '/data_generated/aligned_version/hit_state/' + str(n_iter) + 'collision3'
+            str_name_image = base_dir + '/data_generated/current_batch/hit_image/' + str(n_iter) + 'collision'
+            str_name_state = base_dir + '/data_generated/current_batch/hit_state/' + str(n_iter) + 'collision'
             np.save(str_name_state, state)
-            # np.save(str_name_image, video)
+            np.save(str_name_image, video)
         else:
-            str_name_image = base_dir + '/data_generated/aligned_version/miss_image/' + str(n_iter) + 'collision3'
-            str_name_state = base_dir + '/data_generated/aligned_version/miss_state/' + str(n_iter) + 'collision3'
+            str_name_image = base_dir + '/data_generated/current_batch/miss_image/' + str(n_iter) + 'collision'
+            str_name_state = base_dir + '/data_generated/current_batch/miss_state/' + str(n_iter) + 'collision'
             np.save(str_name_state, state)
-            # np.save(str_name_image, video)
+            np.save(str_name_image, video)
         print(str_name_image, str_name_state)
     elif test_or_train < .9:
         if collision_signal:
-            str_name_image = base_dir + '/data_generated/aligned_version/hit_image/' + str(n_iter) + 'collision3'
-            str_name_state = base_dir + '/data_generated/aligned_version/hit_state/' + str(n_iter) + 'collision3'
+            str_name_image = base_dir + '/data_generated/current_batch/hit_image/' + str(n_iter) + 'collision'
+            str_name_state = base_dir + '/data_generated/current_batch/hit_state/' + str(n_iter) + 'collision'
             np.save(str_name_state, state)
-            # np.save(str_name_image, video)
+            np.save(str_name_image, video)
         else:
-            str_name_image = base_dir + '/data_generated/aligned_version/miss_image/' + str(n_iter) + 'collision3'
-            str_name_state = base_dir + '/data_generated/aligned_version/miss_state/' + str(n_iter) + 'collision3'
+            str_name_image = base_dir + '/data_generated/current_batch/miss_image/' + str(n_iter) + 'collision'
+            str_name_state = base_dir + '/data_generated/current_batch/miss_state/' + str(n_iter) + 'collision'
             np.save(str_name_state, state)
-            # np.save(str_name_image, video)
+            np.save(str_name_image, video)
         print(str_name_image, str_name_state)
     else:
         if collision_signal:
-            str_name_image = base_dir + '/data_generated/aligned_version/hit_image/' + str(n_iter) + 'collision3'
-            str_name_state = base_dir + '/data_generated/aligned_version/hit_state/' + str(n_iter) + 'collision3'
+            str_name_image = base_dir + '/data_generated/current_batch/hit_image/' + str(n_iter) + 'collision'
+            str_name_state = base_dir + '/data_generated/current_batch/hit_state/' + str(n_iter) + 'collision'
             np.save(str_name_state, state)
-            # np.save(str_name_image, video)
+            np.save(str_name_image, video)
         else:
-            str_name_image = base_dir + '/data_generated/aligned_version/miss_image/' + str(n_iter) + 'collision3'
-            str_name_state = base_dir + '/data_generated/aligned_version/miss_state/' + str(n_iter) + 'collision3'
+            str_name_image = base_dir + '/data_generated/current_batch/miss_image/' + str(n_iter) + 'collision'
+            str_name_state = base_dir + '/data_generated/current_batch/miss_state/' + str(n_iter) + 'collision'
             np.save(str_name_state, state)
-            # np.save(str_name_image, video)
+            np.save(str_name_image, video)
         print(str_name_image, str_name_state)
 
 
@@ -295,6 +279,7 @@ def write_to_hit_miss_txt(n_iter, collision_signal, txt_file_counter):
         print(y_list_of_positions6[txt_file_counter + 1], file=new_pos_file)
         print(z_permanent, file=new_pos_file)
 
+
 def single_simulation(n_iter, txt_file_counter):
     print("####################################################################################################################")
     clientID, start_error = start()
@@ -305,17 +290,17 @@ def single_simulation(n_iter, txt_file_counter):
         print("HIT")
     else:
         print("MISS")
-    #need to append hit or miss pos and velo and need to rewrite over last 3 position values make sure I write this info to the file
     write_to_hit_miss_txt(n_iter, collision_signal, txt_file_counter)
     writeImagesStatesToFiles(image_array, state_array, n_iter, collision_signal)
-    # write_play_data(image_array, n_iter, collision_signal) #This is for generating tiny amount of play data
     print("\n")
+
 
 def execute_exp(iter_start, iter_end):
     txt_file_counter = 1
     for current_iteration in range(iter_start, iter_end):
         single_simulation(current_iteration, txt_file_counter)
         txt_file_counter+=1
+
 
 def main():
     execute_exp(0,3000)
