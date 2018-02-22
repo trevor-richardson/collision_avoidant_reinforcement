@@ -8,11 +8,9 @@ import math
 class StatefulConv2dLSTMCell(nn.Module):
     def __init__(self, input_shape, no_filters, kernel_shape, strides, pad=0, weight_init=None, reccurent_weight_init=None,  cell_weight_init=None, bias_init=None, drop=None, rec_drop=None):
         super(StatefulConv2dLSTMCell, self).__init__()
-
         #This needs to be different depending on padding
         if(cell_weight_init == None):
             #Weight matrices for hidden state
-            # tup = (int(int(input_shape[1] - kernel_shape[0] + 1) / strides), int( int(input_shape[2] - kernel_shape[1] + 1) / strides), no_filters)
             self.V_f = nn.Parameter(torch.zeros(
                 no_filters, int(int(math.ceil((input_shape[1] - kernel_shape[0] + 1) / (strides)))), int( math.ceil((input_shape[2] - kernel_shape[1] + 1) / strides))))
             self.V_f = nn.init.xavier_normal(self.V_f)
