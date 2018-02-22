@@ -16,7 +16,7 @@ base_dir = config['DEFAULT']['BASE_DIR']
 
 
 '''
-This is my main script to generate data from my vrep scene. This collects the video data and the collision ground truth
+This needs to be called from a specific script in order to
 '''
 
 x_list_of_positions = np.random.normal(0, 1.0, 3000)
@@ -311,12 +311,15 @@ def single_simulation(n_iter, txt_file_counter):
     # write_play_data(image_array, n_iter, collision_signal) #This is for generating tiny amount of play data
     print("\n")
 
-def main(iter_start, iter_end):
+def execute_exp(iter_start, iter_end):
     txt_file_counter = 1
     for current_iteration in range(iter_start, iter_end):
         single_simulation(current_iteration, txt_file_counter)
         txt_file_counter+=1
 
+def main():
+    execute_exp(0,3000)
+
 
 if __name__ == '__main__':
-    main(0,3000)
+    main()
