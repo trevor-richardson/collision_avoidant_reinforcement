@@ -9,6 +9,7 @@ from os import listdir
 
 class VideoDataGenerator(object):
     def __init__(self, train_dir):
+        print("Loading Collision Avoidance Data Loader")
         self.training_directory = train_dir
 
     def prepare_data(self):

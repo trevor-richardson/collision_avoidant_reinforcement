@@ -5,8 +5,10 @@ import scipy.io as sio
 from os.path import isfile, join
 from os import listdir
 
-class VideoDataGenerator(object):
+class DeepDynamicsDataLoader(object):
     def __init__(self, current_dir, memory_dir):
+        print("Loading Deep Dynamics Data Loader")
+
         self.current_dir = train_dir
         self.memory_dir = val_dir
 

@@ -143,10 +143,8 @@ def detectCollisionSignal(clientID):
     else:
         return 0
 
-
 def writeImagesStatesToFiles(image_array, state_array, n_iter, collision_signal):
     #save as the 5d tensor in theano style
-    #I need a better way to select images from my video -- but for now just getting every tenth image be careful about images late in the game. -- prediction doesnt even help then
     reduced_image = []
     reduced_state = []
 
@@ -189,48 +187,15 @@ def writeImagesStatesToFiles(image_array, state_array, n_iter, collision_signal)
     video = np.moveaxis(video_arr, -1, 1)
     state = np.asarray(selected_states) #this is ready to be saved!
 
-    print (collision_signal)
     print (video.shape)
     print (state.shape)
 
     test_or_train = random.uniform(0, 1)
-    if test_or_train < .45:
-        if collision_signal:
-            str_name_image = base_dir + '/data_generated/current_batch/hit_image/' + str(n_iter) + 'collision'
-            str_name_state = base_dir + '/data_generated/current_batch/hit_state/' + str(n_iter) + 'collision'
-            np.save(str_name_state, state)
-            np.save(str_name_image, video)
-        else:
-            str_name_image = base_dir + '/data_generated/current_batch/miss_image/' + str(n_iter) + 'collision'
-            str_name_state = base_dir + '/data_generated/current_batch/miss_state/' + str(n_iter) + 'collision'
-            np.save(str_name_state, state)
-            np.save(str_name_image, video)
-        print(str_name_image, str_name_state)
-    elif test_or_train < .9:
-        if collision_signal:
-            str_name_image = base_dir + '/data_generated/current_batch/hit_image/' + str(n_iter) + 'collision'
-            str_name_state = base_dir + '/data_generated/current_batch/hit_state/' + str(n_iter) + 'collision'
-            np.save(str_name_state, state)
-            np.save(str_name_image, video)
-        else:
-            str_name_image = base_dir + '/data_generated/current_batch/miss_image/' + str(n_iter) + 'collision'
-            str_name_state = base_dir + '/data_generated/current_batch/miss_state/' + str(n_iter) + 'collision'
-            np.save(str_name_state, state)
-            np.save(str_name_image, video)
-        print(str_name_image, str_name_state)
-    else:
-        if collision_signal:
-            str_name_image = base_dir + '/data_generated/current_batch/hit_image/' + str(n_iter) + 'collision'
-            str_name_state = base_dir + '/data_generated/current_batch/hit_state/' + str(n_iter) + 'collision'
-            np.save(str_name_state, state)
-            np.save(str_name_image, video)
-        else:
-            str_name_image = base_dir + '/data_generated/current_batch/miss_image/' + str(n_iter) + 'collision'
-            str_name_state = base_dir + '/data_generated/current_batch/miss_state/' + str(n_iter) + 'collision'
-            np.save(str_name_state, state)
-            np.save(str_name_image, video)
-        print(str_name_image, str_name_state)
-
+    str_name_image = base_dir + '/data_generated/current_batch/image/' + str(n_iter) + 'collision'
+    str_name_state = base_dir + '/data_generated/current_batch/state/' + str(n_iter) + 'collision'
+    np.save(str_name_state, state)
+    np.save(str_name_image, video)
+    print(str_name_image, str_name_state)
 
 def write_to_hit_miss_txt(n_iter, collision_signal, txt_file_counter):
     filename_newpos = base_dir + '/vrep_scripts/saved_vel_pos_data/current_position.txt'
@@ -294,16 +259,14 @@ def single_simulation(n_iter, txt_file_counter):
     writeImagesStatesToFiles(image_array, state_array, n_iter, collision_signal)
     print("\n")
 
-
 def execute_exp(iter_start, iter_end):
     txt_file_counter = 1
     for current_iteration in range(iter_start, iter_end):
         single_simulation(current_iteration, txt_file_counter)
         txt_file_counter+=1
 
-
 def main():
-    execute_exp(0,3000)
+    execute_exp(0,10)
 
 
 if __name__ == '__main__':
