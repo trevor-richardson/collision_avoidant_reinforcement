@@ -7,7 +7,7 @@ import torch.nn.functional as F
 class Deep_Dynamics(nn.Module):
     def __init__(self, input_shp, num_neurons_0, num_neurons_1, num_neurons_2, num_neurons_3, num_neurons_4, output_shp, dropout_rte=0):
         super(Deep_Dynamics, self).__init__()
-        print("Initializing Deep Dynamics Model\n\n")
+        print("Initializing Deep Dynamics Model")
 
         self.h_0 = nn.Linear(input_shp, num_neurons_0)
         self.h_1 = nn.Linear(num_neurons_0, num_neurons_1)

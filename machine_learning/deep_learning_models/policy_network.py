@@ -7,7 +7,7 @@ import torch.nn.functional as F
 class Policy_Network(nn.Module):
     def __init__(self, input_shp, hidden1_shp, hidden2_shp, hidden3_shp, output_shp, dropout_rte=0):
         super(Policy_Network, self).__init__()
-        print("Initializing Recurrent Policy Network\n\n")
+        print("Initializing Recurrent Policy Network")
 
         self.lstm_1 = nn.LSTMCell(input_shp, hidden1_shp)
         self.lstm_2 = nn.LSTMCell(hidden1_shp, hidden2_shp)

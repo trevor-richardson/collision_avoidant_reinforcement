@@ -9,8 +9,8 @@ class DeepDynamicsDataLoader(object):
     def __init__(self, current_dir, memory_dir):
         print("Loading Deep Dynamics Data Loader")
 
-        self.current_dir = train_dir
-        self.memory_dir = val_dir
+        self.current_dir = current_dir
+        self.memory_dir = memory_dir
 
     def prepare_last_batch(self):
         current = [f for f in listdir(self.current_dir) if isfile(join(self.current_dir, f))]
