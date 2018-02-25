@@ -95,7 +95,6 @@ def evaluate_model(model, num_forward_passes, single_vid):
         del(lst[:])
     return smallest
 
-
 '''Calculate "probability kinda" of hit'''
 def calc_statistics(lst, recorded_state):
     distribution = []
@@ -109,9 +108,28 @@ def train_dd_model(model, optimizer, iterations, tr_data, tr_label, val_data, va
         train_model(model, optimizer, index, tr_data, tr_label, batch_size)
         validate_model(model, index, val_data, val_label, batch_size)
 
+def move_data_files(index_lst, number_corresponds_to_indx, base_dir, iteration):
+    #load the file and image
+    for index, element in enumerate(index_lst):
+        image = np.load(base_dir + 'current_batch/image/' + number_corresponds_to_indx[element])
+        state = np.load(base_dir + 'current_batch/state/' + number_corresponds_to_indx[element])
+        if (index * 1.0) / (len(index_lst) * 1.0) < .5:
 
-def determine_pain_classification(model, lst, base_dir, num_forward_passes):
+            np.save(base_dir + 'saved_data/miss_image/' + str(element) + 'collision' + str(iteration), image)
+            np.save(base_dir + 'saved_data/miss_state/' + str(element) + 'collision' + str(iteration), state)
+        else:
+
+            np.save(base_dir + 'saved_data/hit_image/' + str(element) + 'collision' + str(iteration), image)
+            np.save(base_dir + 'saved_data/hit_state/' + str(element) + 'collision' + str(iteration), state)
+
+
+def determine_pain_classification(model, lst, filenames, base_dir, num_forward_passes, iteration):
     pdf_values = []
+    index = 0
     for element in lst:
         pdf_values.append(evaluate_model(model, num_forward_passes, element))
-    print(pdf_values)
+        index+=1
+
+    move_data_files((np.asarray(pdf_values)).argsort(), filenames, base_dir, iteration)
+
+    #I need to have a method that saves the images and states into their respective new files

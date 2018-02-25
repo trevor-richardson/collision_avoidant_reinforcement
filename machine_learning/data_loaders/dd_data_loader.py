@@ -14,6 +14,9 @@ class DeepDynamicsDataLoader(object):
 
     def prepare_last_batch(self):
         current = [f for f in listdir(self.current_dir) if isfile(join(self.current_dir, f))]
+        returned = []
+        for element in current:
+            returned.append(element)
 
         for indx, element in enumerate(current):
             current[indx] = self.current_dir + element
@@ -27,7 +30,7 @@ class DeepDynamicsDataLoader(object):
                 adder.append(x)
             with_label.append(np.round(np.asarray(adder), 2))
 
-        return with_label
+        return with_label, returned
 
     def prepare_first_train(self):
         current = [f for f in listdir(self.current_dir) if isfile(join(self.current_dir, f))]

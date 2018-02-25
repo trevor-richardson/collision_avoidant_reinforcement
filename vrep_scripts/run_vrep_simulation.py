@@ -118,7 +118,6 @@ def collectImageData(clientID):
                 list_of_images.append(rotate_img)
 
                 count+=1
-        print("updated counter", updated_counter)
         return list_of_images, collector
     else:
         sys.exit()
@@ -187,15 +186,13 @@ def writeImagesStatesToFiles(image_array, state_array, n_iter, collision_signal)
     video = np.moveaxis(video_arr, -1, 1)
     state = np.asarray(selected_states) #this is ready to be saved!
 
-    print (video.shape)
-    print (state.shape)
-
     test_or_train = random.uniform(0, 1)
     str_name_image = base_dir + '/data_generated/current_batch/image/' + str(n_iter) + 'collision'
     str_name_state = base_dir + '/data_generated/current_batch/state/' + str(n_iter) + 'collision'
     np.save(str_name_state, state)
     np.save(str_name_image, video)
-    print(str_name_image, str_name_state)
+    print(str_name_image)
+    print(str_name_state)
 
 def write_to_hit_miss_txt(n_iter, collision_signal, txt_file_counter):
     filename_newpos = base_dir + '/vrep_scripts/saved_vel_pos_data/current_position.txt'

@@ -110,19 +110,6 @@ ca_optimizer = torch.optim.Adam(ca_model.parameters(), lr=args.lr)
 dd_optimizer = torch.optim.Adam(dd_model.parameters(), lr=args.lr)
 pn_optimizer = torch.optim.Adam(pn_model.parameters(), lr=args.lr)
 
-''' Helper functions '''
-def save_model(model, loss):
-    torch.save(model.state_dict(), base_dir + '/machine_learning/saved_models/' + str(loss) + '.pth')
-
-def load_model(path):
-    global model
-    try:
-        model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/" + path))
-    except ValueError:
-        print("Not a valid model to load")
-        sys.exit()
-
-
 def main():
     global dd_model
     global ca_model
@@ -135,15 +122,19 @@ def main():
     dd_loader = DeepDynamicsDataLoader(base_dir + '/data_generated/current_batch/', base_dir + '/data_generated/saved_data/')
     pn_loader = PolicyNetDataLoader()
 
-    execute_exp(0, args.update_size) #initial data collection just to train first iteration of dd model
+    # execute_exp(0, args.update_size) #initial data collection just to train first iteration of dd model
     tr_data, tr_label, val_data, val_label = dd_loader.prepare_first_train()
     train_dd_model(dd_model, dd_optimizer, 100, tr_data, tr_label, val_data, val_label, args.batch_size) #train initial deep dynamics model
 
     for index in range(args.training_iterations):
-        execute_exp(0, args.update_size)
-        determine_pain_classification(dd_model, dd_loader.prepare_last_batch(), base_dir + '/data_generated/saved_data/', args.num_forward_passes)
+        # execute_exp(0, args.update_size)
+        data, filenames = dd_loader.prepare_last_batch()
+        determine_pain_classification(dd_model, data, filenames, base_dir + '/data_generated/', args.num_forward_passes, index)
 
-        #update Anticipation Model
+        #update Anticipation Model --
+        tr_data, tr_label, val_data, val_label = ca_loader.prepare_data()
+        # update_anticipation_model(ca_model, ca_optimizer, 10, tr_data, tr_label, val_data, val_label, args.batch_size)
+
         #update policy gradient model --
 
         if (index + 1) % 10 == 0:
@@ -151,8 +142,6 @@ def main():
             train_dd_model(dd_model, dd_optimizer, 100, tr_data, tr_label, val_data, val_label, args.batch_size)
 
         #move them into hit and miss category
-
-
 
 
 

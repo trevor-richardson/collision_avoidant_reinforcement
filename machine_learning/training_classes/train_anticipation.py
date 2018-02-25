@@ -64,6 +64,7 @@ def train_model(model, optimizer, epoch, data_files, label, batch_size):
         del(y_list[:])
 
     print("Training time for one epoch", time.time() - tim)
+    print(train_loss)
     print('Train Epoch: {}\tLoss: {:.6f}'.format(
         epoch, train_loss.cpu().numpy()[0]/train_step_counter))
 
@@ -176,6 +177,12 @@ def visualize_learning(data_files, label, view_hit, h_or_c, batch_size):
         test_loss, correct, instance_counter * batch_size,
         100. * correct / (instance_counter * batch_size)))
     return 100. * correct / (instance_counter * batch_size)
+
+
+def update_anticipation_model(model, optimizer, iterations, tr_data, tr_label, val_data, val_label, batch_size):
+    for iteration in range(iterations):
+        train_model(model, optimizer, iteration, tr_data, tr_label, batch_size)
+        test_model(model, optimizer, val_data, val_label, batch_size)
 
 
 '''Helper Functions'''

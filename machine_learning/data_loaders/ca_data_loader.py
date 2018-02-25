@@ -41,14 +41,14 @@ class VideoDataGenerator(object):
         hit_counter = 0
         miss_counter = 0
 
-        sizeoftrain = train_number_of_hit + train_number_of_miss
+        sizeoftrain = len(train_hit) + len(train_miss)
         for enumerator in range(sizeoftrain):
             rand = random.uniform(0,1)
-            if (miss_counter > train_number_of_hit -1):
+            if (miss_counter > len(train_miss) - 1):
                 self.train.append(train_hit[hit_counter])
                 self.train_class.append(classification1)
                 hit_counter+=1
-            elif (hit_counter > train_number_of_miss -1):
+            elif (hit_counter > len(train_hit) -1):
                 self.train.append(train_miss[miss_counter])
                 self.train_class.append(classification0)
                 miss_counter+=1
@@ -62,11 +62,11 @@ class VideoDataGenerator(object):
                 miss_counter+=1
 
         '''Slice train and provide final train and val lists'''
-        val = train[(int(len(train)) * .7):]
-        val_class = train_class[(int(len(train_label)) * .7):]
+        self.val = self.train[int(int(len(self.train)) * .7):]
+        self.val_class = self.train_class[int(int(len(self.train_class)) * .7):]
 
-        train = train[:(int(len(train)) * .7)]
-        train_class = train_class[:(int(len(train_label)) * .7)]
+        self.train = self.train[:int(int(len(self.train)) * .7)]
+        self.train_class = self.train_class[:int(int(len(self.train_class)) * .7)]
 
         '''
         Print some facts about my dataset
