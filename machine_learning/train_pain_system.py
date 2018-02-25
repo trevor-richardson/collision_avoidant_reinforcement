@@ -34,6 +34,7 @@ from dd_data_loader import DeepDynamicsDataLoader
 from policy_net_data_loader import PolicyNetDataLoader
 from run_vrep_simulation import execute_exp
 from train_dd import *
+from train_anticipation import *
 
 ''' Global Variables of Interest '''
 def str2bool(v):
@@ -134,24 +135,23 @@ def main():
     dd_loader = DeepDynamicsDataLoader(base_dir + '/data_generated/current_batch/', base_dir + '/data_generated/saved_data/')
     pn_loader = PolicyNetDataLoader()
 
-    execute_exp(0,args.update_size) #initial data collection just to train first iteration of dd model
+    execute_exp(0, args.update_size) #initial data collection just to train first iteration of dd model
     tr_data, tr_label, val_data, val_label = dd_loader.prepare_first_train()
-    train_dd_model(dd_model, dd_optimizer, 100, tr_data, tr_label, val_data, val_label, args.batch_size)
+    train_dd_model(dd_model, dd_optimizer, 100, tr_data, tr_label, val_data, val_label, args.batch_size) #train initial deep dynamics model
 
-    # train initial dd_model -- how long ???? question
     for index in range(args.training_iterations):
-        execute_exp(0,args.update_size)
+        execute_exp(0, args.update_size)
         determine_pain_classification(dd_model, dd_loader.prepare_last_batch(), base_dir + '/data_generated/saved_data/', args.num_forward_passes)
 
-    #     unsupervissed multinomial analysis for caterigorization
-    #
+        #update Anticipation Model
+        #update policy gradient model --
+
+        if (index + 1) % 10 == 0:
+            tr_data, tr_label, val_data, val_label = dd_loader.prepare_data()
+            train_dd_model(dd_model, dd_optimizer, 100, tr_data, tr_label, val_data, val_label, args.batch_size)
 
         #move them into hit and miss category
 
-
-    #loop for certain number of iterations
-        # generate samples
-        # for policy network  --- need to save input, action, target -- sampled action
 
 
 
