@@ -64,7 +64,6 @@ def train_model(model, optimizer, epoch, data_files, label, batch_size):
         del(y_list[:])
 
     print("Training time for one epoch", time.time() - tim)
-    print(train_loss)
     print('Train Epoch: {}\tLoss: {:.6f}'.format(
         epoch, train_loss.cpu().numpy()[0]/train_step_counter))
 

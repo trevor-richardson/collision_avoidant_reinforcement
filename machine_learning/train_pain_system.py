@@ -127,22 +127,24 @@ def main():
     train_dd_model(dd_model, dd_optimizer, 100, tr_data, tr_label, val_data, val_label, args.batch_size) #train initial deep dynamics model
 
     for index in range(args.training_iterations):
-        # execute_exp(0, args.update_size)
+        execute_exp(0, args.update_size)
         data, filenames = dd_loader.prepare_last_batch()
         determine_pain_classification(dd_model, data, filenames, base_dir + '/data_generated/', args.num_forward_passes, index)
 
         #update Anticipation Model --
         tr_data, tr_label, val_data, val_label = ca_loader.prepare_data()
-        # update_anticipation_model(ca_model, ca_optimizer, 10, tr_data, tr_label, val_data, val_label, args.batch_size)
+        if len(tr_data) < args.batch_size or len(val_data) < args.batch_size:
+            update_anticipation_model(ca_model, ca_optimizer, 10, tr_data, tr_label, val_data, val_label, min([len(tr_data), len(val_data)]))
+        else:
+            update_anticipation_model(ca_model, ca_optimizer, 10, tr_data, tr_label, val_data, val_label, args.batch_size)
 
-        #update policy gradient model --
+        #update pn network
 
         if (index + 1) % 10 == 0:
             tr_data, tr_label, val_data, val_label = dd_loader.prepare_data()
             train_dd_model(dd_model, dd_optimizer, 100, tr_data, tr_label, val_data, val_label, args.batch_size)
 
         #move them into hit and miss category
-
 
 
 if __name__ == '__main__':
