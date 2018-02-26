@@ -17,7 +17,7 @@ import argparse
 import configparser
 
 '''Training'''
-def train_model(model, optimizer, epoch, data_files, label, batch_size):
+def ca_train_model(model, optimizer, epoch, data_files, label, batch_size):
     model.train()
 
     tim = time.time()
@@ -69,7 +69,7 @@ def train_model(model, optimizer, epoch, data_files, label, batch_size):
 
 
 '''Testing/Validation'''
-def test_model(model, optimizer, data_files, label, batch_size):
+def ca_test_model(model, optimizer, data_files, label, batch_size):
     model.eval()
 
     tim = time.time()
@@ -112,7 +112,6 @@ def test_model(model, optimizer, data_files, label, batch_size):
 
 
 '''Visualize Activations'''
-
 def visualize_learning(data_files, label, view_hit, h_or_c, batch_size):
     model.eval()
     index = 0
@@ -180,8 +179,8 @@ def visualize_learning(data_files, label, view_hit, h_or_c, batch_size):
 
 def update_anticipation_model(model, optimizer, iterations, tr_data, tr_label, val_data, val_label, batch_size):
     for iteration in range(iterations):
-        train_model(model, optimizer, iteration, tr_data, tr_label, batch_size)
-        test_model(model, optimizer, val_data, val_label, batch_size)
+        ca_train_model(model, optimizer, iteration, tr_data, tr_label, batch_size)
+        ca_test_model(model, optimizer, val_data, val_label, batch_size)
 
 
 '''Helper Functions'''

@@ -5,20 +5,23 @@ import torch.nn.functional as F
 
 '''Simple Recurrent Policy Network'''
 class Policy_Network(nn.Module):
-    def __init__(self, input_shp, hidden1_shp, hidden2_shp, hidden3_shp, output_shp, dropout_rte=0):
+    def __init__(self, input_shp, num_neurons_0, num_neurons_1, num_neurons_2, num_neurons_3, output_shp):
         super(Policy_Network, self).__init__()
-        print("Initializing Recurrent Policy Network")
+        print("Initializing Policy Network")
 
-        self.lstm_1 = nn.LSTMCell(input_shp, hidden1_shp)
-        self.lstm_2 = nn.LSTMCell(hidden1_shp, hidden2_shp)
-        self.lstm_3 = nn.LSTMCell(hidden2_shp, hidden3_shp)
-        self.dropout = nn.Dropout(dropout_rte)
-        self.fcn1 = nn.Linear(hidden3_shp, output_shp) #outputshp represents the number of possible actions robot can take
+        self.h_0 = nn.Linear(input_shp, num_neurons_0)
+        self.h_1 = nn.Linear(num_neurons_0, num_neurons_1)
+        self.h_2 = nn.Linear(num_neurons_1, num_neurons_2)
+        self.h_3 = nn.Linear(num_neurons_2, num_neurons_3)
+        self.output = nn.Linear(num_neurons_3, output_shp)
 
-    def forward(self, x, states):
-        hx_0, cx_0 = self.lstm_1(x, states[0])
-        hx_1, cx_1 = self.lstm_2(hx_0, states[1])
-        hx_2, cx_2 = self.lstm_3(hx_1, states[2])
-        dropped = self.dropout(hx_2)
-        x = self.fcn1(dropped)
-        return x, [[hx_0, cx_0], [hx_1, cx_1], [hx_2, cx_2]]
+    def forward(self, x):
+
+        drop_0 = F.tanh(self.h_0(x))
+        drop_1 = F.tanh(self.h_1(drop_0))
+        drop_2 = F.tanh(self.h_2(drop_1))
+        drop_3 = F.tanh(self.h_3(drop_2))
+
+        y = self.output(drop_3)
+
+        return y

@@ -18,7 +18,7 @@ import configparser
 from scipy import stats
 
 ''' Train Model '''
-def train_model(model, optimizer, epoch, data, label, batch_size):
+def dd_train_model(model, optimizer, epoch, data, label, batch_size):
 
     model.train()
     train_loss = 0
@@ -49,7 +49,7 @@ def train_model(model, optimizer, epoch, data, label, batch_size):
 
 
 ''' Validate Model '''
-def validate_model(model, epoch, val_data, val_label, batch_size):
+def dd_validate_model(model, epoch, val_data, val_label, batch_size):
     model.eval()
     test_loss = 0
     step_counter = 0
@@ -105,23 +105,28 @@ def calc_statistics(lst, recorded_state):
 
 def train_dd_model(model, optimizer, iterations, tr_data, tr_label, val_data, val_label, batch_size):
     for index in range(iterations):
-        train_model(model, optimizer, index, tr_data, tr_label, batch_size)
-        validate_model(model, index, val_data, val_label, batch_size)
+        dd_train_model(model, optimizer, index, tr_data, tr_label, batch_size)
+        dd_validate_model(model, index, val_data, val_label, batch_size)
 
 def move_data_files(index_lst, number_corresponds_to_indx, base_dir, iteration):
     #load the file and image
+    train_pn_lst_hit = []
+    train_pn_lst_miss = []
+
     for index, element in enumerate(index_lst):
         image = np.load(base_dir + 'current_batch/image/' + number_corresponds_to_indx[element])
         state = np.load(base_dir + 'current_batch/state/' + number_corresponds_to_indx[element])
-        if (index * 1.0) / (len(index_lst) * 1.0) < .5:
+        if ((index * 1.0) / (len(index_lst) * 1.0) < .3):
 
             np.save(base_dir + 'saved_data/miss_image/' + str(element) + 'collision' + str(iteration), image)
             np.save(base_dir + 'saved_data/miss_state/' + str(element) + 'collision' + str(iteration), state)
-        else:
+            train_pn_lst_miss.append([image, state])
+        elif ((index * 1.0) / (len(index_lst) * 1.0) > .7):
 
             np.save(base_dir + 'saved_data/hit_image/' + str(element) + 'collision' + str(iteration), image)
             np.save(base_dir + 'saved_data/hit_state/' + str(element) + 'collision' + str(iteration), state)
-
+            train_pn_lst_hit.append([image, state])
+    return train_pn_lst_hit, train_pn_lst_miss
 
 def determine_pain_classification(model, lst, filenames, base_dir, num_forward_passes, iteration):
     pdf_values = []
@@ -130,6 +135,5 @@ def determine_pain_classification(model, lst, filenames, base_dir, num_forward_p
         pdf_values.append(evaluate_model(model, num_forward_passes, element))
         index+=1
 
-    move_data_files((np.asarray(pdf_values)).argsort(), filenames, base_dir, iteration)
-
-    #I need to have a method that saves the images and states into their respective new files
+    hits, miss = move_data_files((np.asarray(pdf_values)).argsort(), filenames, base_dir, iteration)
+    return hits, miss

@@ -8,7 +8,12 @@ import scipy.io as sio
 import scipy
 from scipy import ndimage
 import configparser
-
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
+from torch.autograd import Variable
+from torch.distributions import Categorical
 config = configparser.ConfigParser()
 config.read('../config.ini')
 
@@ -78,7 +83,7 @@ def start():
     error_code =vrep.simxStartSimulation(clientID,vrep.simx_opmode_oneshot_wait)
     return clientID, error_code
 
-def collectImageData(clientID):
+def collectImageData(model, clientID):
     #get my vision sensor working and print the data in the while loop below for 5 seconds after simulation begins
     list_of_images = []
     collector = []
@@ -94,12 +99,14 @@ def collectImageData(clientID):
         collision_bool = False
         count = 0
         updated_counter = 0
+        action = 0
         while (vrep.simxGetConnectionId(clientID)!=-1 and time.time() < t_end):
             res,resolution,image=vrep.simxGetVisionSensorImage(clientID,v0,0,vrep.simx_opmode_buffer)
-
-            if count % 300 == 0:
-                action = np.random.randint(-5, high=5)
-                action *=10
+            if (count + 1) % 100 == 0:
+                input_to_model = Variable(torch.from_numpy(np.concatenate((list_of_images[-1].flatten(), np.asarray(collector[-1])))).float().cuda(), volatile=True)
+                out = model(input_to_model)
+                m = Categorical(out)
+                action = (m.sample().cpu().data -2)  * 15
                 updated_counter+=1
                 return_val = vrep.simxSetJointTargetVelocity(clientID, left_handle, action, vrep.simx_opmode_oneshot)
                 return_val2 = vrep.simxSetJointTargetVelocity(clientID, right_handle, action, vrep.simx_opmode_oneshot_wait)
@@ -118,6 +125,7 @@ def collectImageData(clientID):
                 list_of_images.append(rotate_img)
 
                 count+=1
+        print(updated_counter)
         return list_of_images, collector
     else:
         sys.exit()
@@ -242,10 +250,13 @@ def write_to_hit_miss_txt(n_iter, collision_signal, txt_file_counter):
         print(z_permanent, file=new_pos_file)
 
 
-def single_simulation(n_iter, txt_file_counter):
+def single_simulation(model, n_iter, txt_file_counter):
     print("####################################################################################################################")
+    input_to_model = Variable(torch.from_numpy(np.zeros(64*64*3+7)).float().cuda(), volatile=True)
+    out = model(input_to_model)
+
     clientID, start_error = start()
-    image_array, state_array = collectImageData(clientID) #store these images
+    image_array, state_array = collectImageData(model, clientID) #store these images
     collision_signal = detectCollisionSignal(clientID) #This records whether hit or miss
     end_error = end(clientID)
     if collision_signal:
@@ -256,15 +267,8 @@ def single_simulation(n_iter, txt_file_counter):
     writeImagesStatesToFiles(image_array, state_array, n_iter, collision_signal)
     print("\n")
 
-def execute_exp(iter_start, iter_end):
+def execute_exp(model, iter_start, iter_end):
     txt_file_counter = 1
     for current_iteration in range(iter_start, iter_end):
-        single_simulation(current_iteration, txt_file_counter)
+        single_simulation(model, current_iteration, txt_file_counter)
         txt_file_counter+=1
-
-def main():
-    execute_exp(0,10)
-
-
-if __name__ == '__main__':
-    main()
