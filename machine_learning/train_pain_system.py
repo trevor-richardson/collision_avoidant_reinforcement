@@ -35,6 +35,15 @@ from run_vrep_simulation import execute_exp
 from train_dd import *
 from train_anticipation import *
 
+'''
+
+I need some way to save the models together -- every 100 steps I want to retrain Anticipation model and deep dynamics
+I need to be able to deal with a batch of data - x
+I need to be able to decide when I've converged on training dd and Collision Anticipation
+Update collision ancitipation model
+
+'''
+
 ''' Global Variables of Interest '''
 def str2bool(v):
     if v.lower() in ('yes', 'true', 't', 'y', '1'):
@@ -43,6 +52,7 @@ def str2bool(v):
         return False
     else:
         raise argparse.ArgumentTypeError('Boolean value expected.')
+
 
 parser = argparse.ArgumentParser(description='Reinforcement Learning Guided by Deep Dynamics and Anticipation Models in Pytorch')
 
@@ -113,57 +123,28 @@ ca_optimizer = torch.optim.Adam(ca_model.parameters(), lr=args.lr)
 dd_optimizer = torch.optim.Adam(dd_model.parameters(), lr=args.lr)
 pn_optimizer = torch.optim.Adam(pn_model.parameters(), lr=1e-2)
 
-def create_label(val, reward):
-    if val == 40:
-        label = reward * np.asarray([0, 0, 0, 0, 1])
-    elif val == 20:
-        label = reward * np.asarray([0, 0, 0, 1, 0])
-    elif val == 0:
-        label = reward * np.asarray([0, 0, 1, 0, 0])
-    elif val == -20:
-        label = reward * np.asarray([0, 1, 0, 0, 0])
-    else:
-        label = reward * np.asarray([1, 0, 0, 0, 0])
+def save_models(iteration):
+    torch.save(ca_model.state_dict(), base_dir + '/machine_learning/saved_models/ca' + str(iteration) + '.pth')
+    torch.save(pn_model.state_dict(), base_dir + '/machine_learning/saved_models/pn' + str(iteration) + '.pth')
+    torch.save(dd_model.state_dict(), base_dir + '/machine_learning/saved_models/dd' + str(iteration) + '.pth')
 
-    return label
-
-def prepare_single_sim(lst, reward):
-
-    data = []
-
-    for index in range(0, int(lst[0].shape[0])):
-        flattened = lst[0][index]
-        flattened = lst[0][index].flatten() #flatten image
-        state = lst[1][index]
-
-        if index +1 == int(lst[0].shape[0]):
-            label = create_label(lst[1][index][6], reward)
-        else:
-            label = create_label(lst[1][index + 1][6], reward)
-
-        d2 = np.concatenate((flattened, state, label))
-        data.append(d2)
-    return np.asarray(data)
-
-
-def prepare_pn_data(hits, miss):
-    #get number of hits and misses -- flatten the
-    data_set = prepare_single_sim(miss[0], -1)
-    for index in range(1 , len(miss)):
-        data_set = np.concatenate((data_set, prepare_single_sim(miss[index], -1)))
-    for index in range(0, len(hits)):
-        data_set = np.concatenate((data_set, prepare_single_sim(hits[index], 1)))
-    np.random.shuffle(data_set)
-    return data_set
-
+def load_models(iteration):
+    global dd_model
+    global pn_model
+    global ca_model
+    try:
+        dd_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/dd" + str(iteration) + ".pth"))
+        pn_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/pn" + str(iteration) + ".pth"))
+        ca_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/ca" + str(iteration) + ".pth"))
+    except ValueError:
+        print("Not a valid model to load")
+        sys.exit()
 
 def update_policy_network(model, optimizer):
     R = 0
     policy_loss = []
     rewards = []
     count = 0
-    print(len(model.rewards), "length")
-    print(len(model.updated_log_probs))
     for r in model.rewards[::-1]:
         R = r + args.gamma * R
         rewards.insert(0, R)
@@ -192,7 +173,7 @@ def main():
     dd_loader = DeepDynamicsDataLoader(base_dir + '/data_generated/current_batch/', base_dir + '/data_generated/saved_data/')
 
     #need to make policy network work in simulation
-    # execute_exp(pn_model, 0, args.update_size) #initial data collection just to train first iteration of dd model
+    execute_exp(pn_model, 0, args.update_size) #initial data collection just to train first iteration of dd model
     tr_data, tr_label, val_data, val_label = dd_loader.prepare_first_train()
     train_dd_model(dd_model, dd_optimizer, 100, tr_data, tr_label, val_data, val_label, args.batch_size) #train initial deep dynamics model
 
@@ -208,6 +189,13 @@ def main():
         print("Reward", reward)
         print()
 
+        if (index + 1) % 100 == 0:
+            #update the ability to learn behavior here
+            execute_exp(pn_model, 0, args.update_size) #initial data collection just to train first iteration of dd model
+            tr_data, tr_label, val_data, val_label = dd_loader.prepare_first_train()
+            train_dd_model(dd_model, dd_optimizer, 100, tr_data, tr_label, val_data, val_label, args.batch_size)
+
+
         #update deep dynamics model and Anticipation model
         # if (index + 1) % 10 == 0:
         #     tr_data, tr_label, val_data, val_label = dd_loader.prepare_data()
@@ -217,7 +205,6 @@ def main():
         #         update_anticipation_model(ca_model, ca_optimizer, 10, tr_data, tr_label, val_data, val_label, min([len(tr_data), len(val_data)]))
         #     else:
         #         update_anticipation_model(ca_model, ca_optimizer, 10, tr_data, tr_label, val_data, val_label, args.batch_size)
-
 
 
 if __name__ == '__main__':
