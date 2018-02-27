@@ -53,8 +53,9 @@ class DeepDynamicsDataLoader(object):
 
         np.random.shuffle(data)
 
-        train_data = data[:, :7]
-        train_label = data[:, 7:]
+        train_data = data[:, :7].astype(float)
+        train_label = data[:, 7:].astype(float)
+
 
         train_data = np.round(train_data, 2)
         train_label = np.round(train_label, 2)

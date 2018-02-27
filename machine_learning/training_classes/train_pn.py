@@ -47,7 +47,6 @@ def train_model(model, optimizer, epoch, data, label, batch_size):
         epoch, train_loss.cpu().numpy()[0]/step_counter))
 
 
-
 ''' Validate Model '''
 def validate_model(model, epoch, val_data, val_label, batch_size):
     model.eval()

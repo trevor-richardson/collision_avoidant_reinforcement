@@ -98,24 +98,13 @@ def collectImageData(model, clientID):
         t_end = time.time() + 2.8
         collision_bool = False
         count = 0
-        updated_counter = 0
         action = 0
         while (vrep.simxGetConnectionId(clientID)!=-1 and time.time() < t_end):
             res,resolution,image=vrep.simxGetVisionSensorImage(clientID,v0,0,vrep.simx_opmode_buffer)
-            if (count + 1) % 100 == 0:
-                input_to_model = Variable(torch.from_numpy(np.concatenate((list_of_images[-1].flatten(), np.asarray(collector[-1])))).float().cuda(), volatile=True)
-                out = model(input_to_model)
-                m = Categorical(out)
-                action = (m.sample().cpu().data -2)  * 15
-                updated_counter+=1
-                return_val = vrep.simxSetJointTargetVelocity(clientID, left_handle, action, vrep.simx_opmode_oneshot)
-                return_val2 = vrep.simxSetJointTargetVelocity(clientID, right_handle, action, vrep.simx_opmode_oneshot_wait)
+            '''Execute policy network'''
 
             #convert the image add to numpy array we collect about 35 images per simulation
             if res==vrep.simx_return_ok:
-                ret_code, pos = vrep.simxGetObjectPosition(clientID, base_handle, -1, vrep.simx_opmode_oneshot)
-                ret_code, velo, angle_velo = vrep.simxGetObjectVelocity(clientID, base_handle, vrep.simx_opmode_oneshot)
-                collector.append([pos[0], pos[1], pos[2], velo[0], velo[1], velo[2], action])
 
                 #got state data
                 img = np.array(image,dtype=np.uint8)
@@ -124,14 +113,31 @@ def collectImageData(model, clientID):
                 rotate_img = np.flipud(img)
                 list_of_images.append(rotate_img)
 
+                ret_code, pos = vrep.simxGetObjectPosition(clientID, base_handle, -1, vrep.simx_opmode_oneshot)
+                ret_code, velo, angle_velo = vrep.simxGetObjectVelocity(clientID, base_handle, vrep.simx_opmode_oneshot)
+                collector.append([pos[0], pos[1], pos[2], velo[0], velo[1], velo[2], action])
+
+                if (count) % 75 == 0:
+                    # print(np.concatenate((list_of_images[-1].flatten(), np.asarray(collector[-1]))).shape)
+                    arr = np.concatenate((list_of_images[-1].flatten(), np.asarray(collector[-1]))).astype('float')
+                    torch_arr = torch.from_numpy(arr)
+                    input_to_model = Variable(torch_arr.float().cuda())
+                    out = model(input_to_model)
+                    m = Categorical(out)
+                    act = m.sample()
+                    model.saved_log_probs.append(m.log_prob(act))
+                    action = (act -2)  * 15
+                    return_val = vrep.simxSetJointTargetVelocity(clientID, left_handle, action, vrep.simx_opmode_oneshot)
+                    return_val2 = vrep.simxSetJointTargetVelocity(clientID, right_handle, action, vrep.simx_opmode_oneshot_wait)
+                else:
+                    model.saved_log_probs.append(m.log_prob(act))
+
                 count+=1
-        print(updated_counter)
         return list_of_images, collector
     else:
         sys.exit()
 
 def end(clientID):
-    #end and cleanup
     error_code =vrep.simxStopSimulation(clientID,vrep.simx_opmode_oneshot_wait)
     vrep.simxFinish(clientID)
     return error_code
@@ -144,14 +150,12 @@ def detectCollisionSignal(clientID):
     start = time.time()
     while(time.time() < start +1):
         pass
-
     if detector[1] == 1:
         return 1
     else:
         return 0
 
-def writeImagesStatesToFiles(image_array, state_array, n_iter, collision_signal):
-    #save as the 5d tensor in theano style
+def writeImagesStatesToFiles(model, image_array, state_array, n_iter, collision_signal):
     reduced_image = []
     reduced_state = []
 
@@ -160,10 +164,12 @@ def writeImagesStatesToFiles(image_array, state_array, n_iter, collision_signal)
         time_dilation == 5
     elif time_dilation > 20:
         time_dilation == 20 #set limits on how dilated the video it sees can be
-    time_dilation = 15 #Leave this if you dont want to grab the right images
+    time_dilation = 10 #Leave this if you dont want to grab the right images
 
     reduced_image.append(image_array[0])
     reduced_state.append(state_array[0])
+    model.updated_log_probs.append(model.saved_log_probs[0])
+    print(len(image_array), len(state_array))
 
     for enumerator in range(len(image_array)):
         if enumerator % time_dilation == 0 and enumerator != 0:
@@ -171,36 +177,43 @@ def writeImagesStatesToFiles(image_array, state_array, n_iter, collision_signal)
             if noise < .1:
                 reduced_state.append(state_array[enumerator - 2])
                 reduced_image.append(image_array[enumerator - 2])
+                model.updated_log_probs.append(model.saved_log_probs[enumerator - 2])
             elif noise < .2:
                 reduced_image.append(image_array[enumerator - 1])
                 reduced_state.append(state_array[enumerator - 1])
+                model.updated_log_probs.append(model.saved_log_probs[enumerator - 1])
             elif noise < .3:
                 if enumerator + 1 < len(image_array):
                     reduced_state.append(state_array[enumerator + 1])
                     reduced_image.append(image_array[enumerator + 1])
+                    model.updated_log_probs.append(model.saved_log_probs[enumerator + 1])
             elif noise < .4:
                 if enumerator + 2 < len(image_array):
                     reduced_state.append(state_array[enumerator + 2])
                     reduced_image.append(image_array[enumerator + 2])
+                    model.updated_log_probs.append(model.saved_log_probs[enumerator + 2])
             else:
                 reduced_image.append(image_array[enumerator])
                 reduced_state.append(state_array[enumerator])
+                model.updated_log_probs.append(model.saved_log_probs[enumerator])
 
-    print("Cluster ", time_dilation, "  size of reduced array img and state ", len(reduced_image), len(reduced_state))
+    # print("Cluster ", time_dilation, "  size of reduced array img and state ", len(reduced_image), len(reduced_state))
     selected_images = reduced_image[:70]
     selected_states = reduced_state[:70]
-
+    model.updated_log_probs = model.updated_log_probs[:69]
     video_arr = np.concatenate([arr[np.newaxis] for arr in selected_images])
-    video = np.moveaxis(video_arr, -1, 1)
-    state = np.asarray(selected_states) #this is ready to be saved!
+    video = np.moveaxis(video_arr, -1, 1).astype(float)
+    state = np.asarray(selected_states).astype(float) #this is ready to be saved!
+
 
     test_or_train = random.uniform(0, 1)
     str_name_image = base_dir + '/data_generated/current_batch/image/' + str(n_iter) + 'collision'
     str_name_state = base_dir + '/data_generated/current_batch/state/' + str(n_iter) + 'collision'
     np.save(str_name_state, state)
     np.save(str_name_image, video)
-    print(str_name_image)
-    print(str_name_state)
+    print(state.shape)
+    print(video.shape)
+    return video, state
 
 def write_to_hit_miss_txt(n_iter, collision_signal, txt_file_counter):
     filename_newpos = base_dir + '/vrep_scripts/saved_vel_pos_data/current_position.txt'
@@ -251,7 +264,7 @@ def write_to_hit_miss_txt(n_iter, collision_signal, txt_file_counter):
 
 
 def single_simulation(model, n_iter, txt_file_counter):
-    print("####################################################################################################################")
+    # print("####################################################################################################################")
     input_to_model = Variable(torch.from_numpy(np.zeros(64*64*3+7)).float().cuda(), volatile=True)
     out = model(input_to_model)
 
@@ -264,11 +277,15 @@ def single_simulation(model, n_iter, txt_file_counter):
     else:
         print("MISS")
     write_to_hit_miss_txt(n_iter, collision_signal, txt_file_counter)
-    writeImagesStatesToFiles(image_array, state_array, n_iter, collision_signal)
+    video, state = writeImagesStatesToFiles(model, image_array, state_array, n_iter, collision_signal)
     print("\n")
+    return video, state
 
 def execute_exp(model, iter_start, iter_end):
     txt_file_counter = 1
+    lst = []
     for current_iteration in range(iter_start, iter_end):
-        single_simulation(model, current_iteration, txt_file_counter)
+        video, state = single_simulation(model, current_iteration, txt_file_counter)
+        lst.append([video, state])
         txt_file_counter+=1
+    return lst

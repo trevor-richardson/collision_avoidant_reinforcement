@@ -47,7 +47,7 @@ def str2bool(v):
 parser = argparse.ArgumentParser(description='Reinforcement Learning Guided by Deep Dynamics and Anticipation Models in Pytorch')
 
 #training and testing args
-parser.add_argument('--training_iterations', type=int, default=20, metavar='N',
+parser.add_argument('--training_iterations', type=int, default=30000, metavar='N',
                     help='Number of times I want to train a reinforcement learning model')
 parser.add_argument('--num_forward_passes', type=int, default=32, metavar='N',
                     help='Number of forward passes for dropout at test time for multivariate_normal pdf calc')
@@ -83,7 +83,9 @@ parser.add_argument('--strides', type=int, default=2, metavar='N',
                     help='Strides for the convolutions in the convlstm layers (default 2)')
 parser.add_argument('--drop_rte', type=float, default=.3, metavar='N',
                     help='dropout rate (default .3)')
-parser.add_argument('--update_size', type=int, default=100, metavar='N',
+parser.add_argument('--gamma', type=float, default=0.999, metavar='G',
+                    help='discount factor (default: 0.999)')
+parser.add_argument('--update_size', type=int, default=10, metavar='N',
                     help='Number of trials a specific policy is run on before we train our models (default 100)')
 args = parser.parse_args()
 
@@ -109,7 +111,7 @@ if torch.cuda.is_available():
 
 ca_optimizer = torch.optim.Adam(ca_model.parameters(), lr=args.lr)
 dd_optimizer = torch.optim.Adam(dd_model.parameters(), lr=args.lr)
-pn_optimizer = torch.optim.Adam(pn_model.parameters(), lr=args.lr * 10)
+pn_optimizer = torch.optim.Adam(pn_model.parameters(), lr=1e-2)
 
 def create_label(val, reward):
     if val == 40:
@@ -154,6 +156,30 @@ def prepare_pn_data(hits, miss):
     np.random.shuffle(data_set)
     return data_set
 
+
+def update_policy_network(model, optimizer):
+    R = 0
+    policy_loss = []
+    rewards = []
+    count = 0
+    print(len(model.rewards), "length")
+    print(len(model.updated_log_probs))
+    for r in model.rewards[::-1]:
+        R = r + args.gamma * R
+        rewards.insert(0, R)
+    rewards = torch.Tensor(rewards)
+    for log_prob, reward in zip(model.updated_log_probs, rewards):
+        policy_loss.append(-log_prob * reward)
+    optimizer.zero_grad()
+    policy_loss = torch.cat(policy_loss).sum()
+    policy_loss.backward()
+    optimizer.step()
+    del model.rewards[:]
+    del model.saved_log_probs[:]
+    del model.updated_log_probs[:]
+    return R
+
+
 def main():
     global dd_model
     global ca_model
@@ -166,32 +192,32 @@ def main():
     dd_loader = DeepDynamicsDataLoader(base_dir + '/data_generated/current_batch/', base_dir + '/data_generated/saved_data/')
 
     #need to make policy network work in simulation
-    execute_exp(pn_model, 0, args.update_size) #initial data collection just to train first iteration of dd model
+    # execute_exp(pn_model, 0, args.update_size) #initial data collection just to train first iteration of dd model
     tr_data, tr_label, val_data, val_label = dd_loader.prepare_first_train()
     train_dd_model(dd_model, dd_optimizer, 100, tr_data, tr_label, val_data, val_label, args.batch_size) #train initial deep dynamics model
 
     for index in range(args.training_iterations):
-        tim = time.time()
-        execute_exp(pn_model, 0, args.update_size)
-        data, filenames = dd_loader.prepare_last_batch()
-        hit, miss = determine_pain_classification(dd_model, data, filenames, base_dir + '/data_generated/', args.num_forward_passes, index)
-        pn_data = prepare_pn_data(hit, miss)
-        # prepare hit and miss to have the desired input format for pn
+        print("####################################################################################################################\n")
 
-        #make the training for policy network
+        data = execute_exp(pn_model, 0, 1) #needs to return batch, necesary_arguments,
+        # data, filenames = dd_loader.prepare_last_batch()
+        # hit, miss = determine_pain_classification(dd_model, data, filenames, base_dir + '/data_generated/', args.num_forward_passes, index)
+
+        determine_reward(dd_model, pn_model, data[0][1], args.num_forward_passes)
+        reward = update_policy_network(pn_model, pn_optimizer)
+        print("Reward", reward)
+        print()
 
         #update deep dynamics model and Anticipation model
-        if (index + 1) % 10 == 0:
-            tr_data, tr_label, val_data, val_label = dd_loader.prepare_data()
-            train_dd_model(dd_model, dd_optimizer, 100, tr_data, tr_label, val_data, val_label, args.batch_size)
-            tr_data, tr_label, val_data, val_label = ca_loader.prepare_data()
-            if len(tr_data) < args.batch_size or len(val_data) < args.batch_size:
-                update_anticipation_model(ca_model, ca_optimizer, 10, tr_data, tr_label, val_data, val_label, min([len(tr_data), len(val_data)]))
-            else:
-                update_anticipation_model(ca_model, ca_optimizer, 10, tr_data, tr_label, val_data, val_label, args.batch_size)
+        # if (index + 1) % 10 == 0:
+        #     tr_data, tr_label, val_data, val_label = dd_loader.prepare_data()
+        #     train_dd_model(dd_model, dd_optimizer, 100, tr_data, tr_label, val_data, val_label, args.batch_size)
+        #     tr_data, tr_label, val_data, val_label = ca_loader.prepare_data()
+        #     if len(tr_data) < args.batch_size or len(val_data) < args.batch_size:
+        #         update_anticipation_model(ca_model, ca_optimizer, 10, tr_data, tr_label, val_data, val_label, min([len(tr_data), len(val_data)]))
+        #     else:
+        #         update_anticipation_model(ca_model, ca_optimizer, 10, tr_data, tr_label, val_data, val_label, args.batch_size)
 
-        #move them into hit and miss category
-        print(time.time() - tim, "Time for one loop")
 
 
 if __name__ == '__main__':

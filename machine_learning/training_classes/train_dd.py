@@ -80,6 +80,7 @@ def dd_validate_model(model, epoch, val_data, val_label, batch_size):
 def evaluate_model(model, num_forward_passes, single_vid):
     model.train()
     smallest = 999999999
+    rewards = []
 
     for index in range(int(single_vid.shape[0])):
         lst = []
@@ -89,19 +90,17 @@ def evaluate_model(model, num_forward_passes, single_vid):
         input_to_model = Variable(input_to_model.float(), volatile=True)
         for inner_index in range(num_forward_passes):
             lst.append((model(input_to_model).cpu().data.numpy()))
-        small = calc_statistics(np.asarray(lst), single_vid[index, 7:])
-        if smallest > small:
-            smallest = small
+        rewards.append(calc_statistics(np.asarray(lst), single_vid[index, 7:]))
         del(lst[:])
-    return smallest
+    return rewards
 
 '''Calculate "probability kinda" of hit'''
 def calc_statistics(lst, recorded_state):
     distribution = []
-    mean = np.mean(lst)
-    var = np.var(lst)
-    f = stats.multivariate_normal.pdf(recorded_state, mean=mean, cov=var)
-    return np.min(f)
+    mean = np.mean(lst, axis=0)
+    var = np.cov(lst, rowvar=False)
+    pdf = stats.multivariate_normal.pdf(recorded_state, mean=mean, cov=var)
+    return pdf
 
 def train_dd_model(model, optimizer, iterations, tr_data, tr_label, val_data, val_label, batch_size):
     for index in range(iterations):
@@ -109,23 +108,13 @@ def train_dd_model(model, optimizer, iterations, tr_data, tr_label, val_data, va
         dd_validate_model(model, index, val_data, val_label, batch_size)
 
 def move_data_files(index_lst, number_corresponds_to_indx, base_dir, iteration):
-    #load the file and image
     train_pn_lst_hit = []
     train_pn_lst_miss = []
 
     for index, element in enumerate(index_lst):
         image = np.load(base_dir + 'current_batch/image/' + number_corresponds_to_indx[element])
         state = np.load(base_dir + 'current_batch/state/' + number_corresponds_to_indx[element])
-        if ((index * 1.0) / (len(index_lst) * 1.0) < .3):
 
-            np.save(base_dir + 'saved_data/miss_image/' + str(element) + 'collision' + str(iteration), image)
-            np.save(base_dir + 'saved_data/miss_state/' + str(element) + 'collision' + str(iteration), state)
-            train_pn_lst_miss.append([image, state])
-        elif ((index * 1.0) / (len(index_lst) * 1.0) > .7):
-
-            np.save(base_dir + 'saved_data/hit_image/' + str(element) + 'collision' + str(iteration), image)
-            np.save(base_dir + 'saved_data/hit_state/' + str(element) + 'collision' + str(iteration), state)
-            train_pn_lst_hit.append([image, state])
     return train_pn_lst_hit, train_pn_lst_miss
 
 def determine_pain_classification(model, lst, filenames, base_dir, num_forward_passes, iteration):
@@ -135,5 +124,16 @@ def determine_pain_classification(model, lst, filenames, base_dir, num_forward_p
         pdf_values.append(evaluate_model(model, num_forward_passes, element))
         index+=1
 
-    hits, miss = move_data_files((np.asarray(pdf_values)).argsort(), filenames, base_dir, iteration)
-    return hits, miss
+    move_data_files(pdf_values, filenames, base_dir, iteration)
+    return pdf_values
+
+def determine_reward(dd_model, pn_model, data, num_forward_passes):
+    adder = []
+    for index in range(data.shape[0] - 1):
+        x = np.concatenate((data[index], data[index+1, :6]))
+        adder.append(x)
+    adder = np.asarray(adder)
+
+    pdf_values = evaluate_model(dd_model, num_forward_passes, adder)
+    for element in pdf_values:
+        pn_model.rewards.append(element)
