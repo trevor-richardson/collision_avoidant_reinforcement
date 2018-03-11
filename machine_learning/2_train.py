@@ -103,43 +103,44 @@ parser.add_argument('--update_size', type=int, default=100, metavar='N',
                     help='Number of trials a specific policy is run on before we train our models (default 100)')
 args = parser.parse_args()
 
-''' Load Deep Models '''
+
 rgb_shape = (3, 64, 64)
-dd_inp_shape = (7)
-dd_output_shape = (6)
-pn_inp_shape = 3 * 64 * 64 + 7  #Input is a flattened image and the current state
+dd_inp_shape = (10)
+dd_output_shape = (9)
+ca_output_shape = 5
 
 ca_model = Custom_Spatial_Temporal_Anticipation_NN(rgb_shape, (args.no_filters_0,
-    args.no_filters_1, args.no_filters_2), (args.kernel_0, args.kernel_0), args.strides, 1,
+    args.no_filters_1, args.no_filters_2), (args.kernel_0, args.kernel_0), args.strides, ca_output_shape,
     padding=0, dropout_rte=args.drop_rte)
 
-dd_model = Deep_Dynamics(dd_inp_shape, 40, 30, 20, 15, 15, dd_output_shape, args.drop_rte)
-
-pn_model = Policy_Network(pn_inp_shape, args.hidden_0, args.hidden_1, args.hidden_2, args.hidden_3, args.num_actions)
+dd_model = Deep_Dynamics(dd_inp_shape, 60, 40, 30, 20, 20, dd_output_shape, args.drop_rte)
 
 if torch.cuda.is_available():
     print("Using GPU acceleration")
     ca_model.cuda()
     dd_model.cuda()
-    pn_model.cuda()
 
 ca_optimizer = torch.optim.Adam(ca_model.parameters(), lr=args.lr)
 dd_optimizer = torch.optim.Adam(dd_model.parameters(), lr=args.lr)
-pn_optimizer = torch.optim.Adam(pn_model.parameters(), lr=1e-2)
+
 
 def save_models(iteration):
     torch.save(ca_model.state_dict(), base_dir + '/machine_learning/saved_models/ca' + str(iteration) + '.pth')
-    torch.save(pn_model.state_dict(), base_dir + '/machine_learning/saved_models/pn' + str(iteration) + '.pth')
-    torch.save(dd_model.state_dict(), base_dir + '/machine_learning/saved_models/dd' + str(iteration) + '.pth')
 
 def load_models(iteration):
     global dd_model
-    global pn_model
     global ca_model
     try:
-        dd_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/dd" + str(iteration) + ".pth"))
-        pn_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/pn" + str(iteration) + ".pth"))
+        dd_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/dd_model/0.11827140841.pth"))
         ca_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/ca" + str(iteration) + ".pth"))
+    except ValueError:
+        print("Not a valid model to load")
+        sys.exit()
+
+def load_dd_model(iteration):
+    global dd_model
+    try:
+        dd_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/dd_model/0.11827140841.pth"))
     except ValueError:
         print("Not a valid model to load")
         sys.exit()
@@ -174,47 +175,35 @@ def update_policy_network(model, optimizer):
     print(rewards.sum())
     return R
 
+load_dd_model(0)
 def main():
     global dd_model
     global ca_model
-    global pn_model
     global ca_optimizer
     global dd_optimizer
-    global pn_optimizer
 
-    # first pass of loading and training -- dd so that I can then split the data to its respective owners
-    ca_loader = VideoDataGenerator(base_dir + '/data_generated/saved_data/')
-    dd_loader = DeepDynamicsDataLoader(base_dir + '/data_generated/current_batch/', base_dir + '/data_generated/saved_data/')
-
-    #need to make policy network work in simulation
-    # load_models(498)
-    # execute_exp(pn_model, 0, args.update_size, False) #initial data collection just to train first iteration of dd model
-    tr_data, tr_label, val_data, val_label = dd_loader.prepare_first_train()
-    train_dd_model(dd_model, dd_optimizer, 50, tr_data, tr_label, val_data, val_label, args.batch_size) #train initial deep dynamics model
-    pn_optimizer.zero_grad()
+    ca_optimizer.zero_grad()
     print("####################################################################################################################\n")
     for index in range(args.training_iterations):
 
-        data = execute_exp(pn_model, 0, 1, True) #needs to return batch, necesary_arguments,
-        pn_model.saved_log_probs = pn_model.saved_log_probs[:-1]
-        pn_model.saved_log_probs = pn_model.saved_log_probs[:-1]
-        determine_reward(dd_model, pn_model, data[0][1], args.num_forward_passes)
-        if len(pn_model.reset_locations) > 1:
-            pn_model.reset_locations[-1] += pn_model.reset_locations[-2] + 1
+        data = execute_exp(ca_model, 0, 1, True) #needs to return batch, necesary_arguments,
+        ca_model.saved_log_probs = ca_model.saved_log_probs[:-1]
+        ca_model.saved_log_probs = ca_model.saved_log_probs[:-1]
+        determine_reward(dd_model, ca_model, data[0][1], args.num_forward_passes)
+        dd_optimizer.zero_grad() #clear previous gradients
+
+        if len(ca_model.reset_locations) > 1:
+            ca_model.reset_locations[-1] += ca_model.reset_locations[-2] + 1
 
         if (index + 1) % 5 == 0:
-            reward = update_policy_network(pn_model, pn_optimizer)
+            reward = update_policy_network(ca_model, ca_optimizer)
             print("Reward", reward)
             print()
             print("####################################################################################################################\n")
 
         if (index + 3) % 50 == 0:
-            pn_optimizer.zero_grad()
+            ca_optimizer.zero_grad()
             save_models(index)
-            # data = execute_exp(pn_model, args.update_size + 100, args.update_size + 100 + args.update_size, False)
-            # tr_data, tr_label, val_data, val_label = dd_loader.prepare_first_train()
-            # train_dd_model(dd_model, dd_optimizer, 75, tr_data, tr_label, val_data, val_label, args.batch_size)
-
 
 
 

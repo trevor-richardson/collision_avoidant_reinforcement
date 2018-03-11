@@ -15,11 +15,11 @@ class Policy_Network(nn.Module):
         self.h_3 = nn.Linear(num_neurons_2, num_neurons_3)
         self.output = nn.Linear(num_neurons_3, output_shp)
 
-        #in order to later back prop on discounted reward
 
         self.saved_log_probs = []
         self.updated_log_probs = []
         self.rewards = []
+        self.reset_locations = []
 
 
     def forward(self, x):

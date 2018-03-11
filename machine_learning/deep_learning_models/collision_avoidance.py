@@ -9,6 +9,11 @@ class Custom_Spatial_Temporal_Anticipation_NN(nn.Module):
         super(Custom_Spatial_Temporal_Anticipation_NN, self).__init__()
         print("Running Custom Built Stateful Conv2dLSTM")
 
+        self.saved_log_probs = []
+        self.updated_log_probs = []
+        self.rewards = []
+        self.reset_locations = []
+
         self.convlstm_0 = StatefulConv2dLSTMCell(input_shp, no_filters[0], kernel_size, strides, pad=padding)
 
         self.convlstm_1 = StatefulConv2dLSTMCell(self.convlstm_0.output_shape, no_filters[1], kernel_size, strides, pad=padding)
@@ -26,5 +31,5 @@ class Custom_Spatial_Temporal_Anticipation_NN(nn.Module):
         hx_1, cx_1 = self.convlstm_1(hx_0, (states[1][0] ,states[1][1]))
         hx_2, cx_2 = self.convlstm_2(hx_1, (states[2][0] ,states[2][1]))
         dropped = self.dropout(hx_2.view(hx_2.size(0), -1)) #use dropout on flattened output of convlstm cell
-        y = F.sigmoid(self.fcn1(dropped))
+        y = F.softmax(self.fcn1(dropped), dim=0)
         return y, [[hx_0, cx_0], [hx_1, cx_1], [hx_2, cx_2]]

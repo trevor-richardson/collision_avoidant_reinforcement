@@ -40,12 +40,6 @@ I need some way to save the models together -- every 100 steps I want to retrain
 I need to be able to deal with a batch of data - x
 I need to be able to decide when I've converged on training dd and Collision Anticipation
 Update collision ancitipation model
-----------------------
-Save old demos and their results --
-Update new deep dynamics model --
-Update collision prediction system --
-Run new experiments
-Read and implement ddpg
 '''
 
 ''' Global Variables of Interest '''
@@ -61,6 +55,8 @@ def str2bool(v):
 parser = argparse.ArgumentParser(description='Reinforcement Learning Guided by Deep Dynamics and Anticipation Models in Pytorch')
 
 #training and testing args
+parser.add_argument('--model_to_load', type=int, default=0, metavar='N',
+                    help='If Model To Load != 0 load that model triplet')
 parser.add_argument('--training_iterations', type=int, default=30000, metavar='N',
                     help='Number of times I want to train a reinforcement learning model')
 parser.add_argument('--num_forward_passes', type=int, default=32, metavar='N',
@@ -114,7 +110,6 @@ ca_model = Custom_Spatial_Temporal_Anticipation_NN(rgb_shape, (args.no_filters_0
     padding=0, dropout_rte=args.drop_rte)
 
 dd_model = Deep_Dynamics(dd_inp_shape, 40, 30, 20, 15, 15, dd_output_shape, args.drop_rte)
-
 pn_model = Policy_Network(pn_inp_shape, args.hidden_0, args.hidden_1, args.hidden_2, args.hidden_3, args.num_actions)
 
 if torch.cuda.is_available():
@@ -144,35 +139,6 @@ def load_models(iteration):
         print("Not a valid model to load")
         sys.exit()
 
-def update_policy_network(model, optimizer):
-    R = 0
-    policy_loss = []
-    rewards = []
-    count = 0
-    counter = len(model.saved_log_probs) - 1
-    count_reset = len(model.reset_locations) - 1
-    for r in model.rewards[::-1]:
-        if model.reset_locations[count_reset] == counter:
-            R = 0
-            count_reset = count_reset -1
-        R = r + args.gamma * R
-        rewards.insert(0, R)
-        counter = counter -1
-    rewards = torch.Tensor(rewards)
-    rewards = (rewards - rewards.mean()) / (rewards.std() + np.finfo(np.float32).eps)
-
-    for log_prob, reward in zip(model.saved_log_probs, rewards):
-        policy_loss.append(-log_prob * reward)
-    optimizer.zero_grad()
-    policy_loss = torch.cat(policy_loss).sum()
-    policy_loss.backward()
-    optimizer.step()
-    del model.rewards[:]
-    del model.reset_locations[:]
-    del model.saved_log_probs[:]
-    del model.updated_log_probs[:]
-    print(rewards.sum())
-    return R
 
 def main():
     global dd_model
@@ -186,36 +152,11 @@ def main():
     ca_loader = VideoDataGenerator(base_dir + '/data_generated/saved_data/')
     dd_loader = DeepDynamicsDataLoader(base_dir + '/data_generated/current_batch/', base_dir + '/data_generated/saved_data/')
 
-    #need to make policy network work in simulation
-    # load_models(498)
-    # execute_exp(pn_model, 0, args.update_size, False) #initial data collection just to train first iteration of dd model
-    tr_data, tr_label, val_data, val_label = dd_loader.prepare_first_train()
-    train_dd_model(dd_model, dd_optimizer, 50, tr_data, tr_label, val_data, val_label, args.batch_size) #train initial deep dynamics model
-    pn_optimizer.zero_grad()
+    load_models(598)
     print("####################################################################################################################\n")
-    for index in range(args.training_iterations):
-
+    for index in range(100):
         data = execute_exp(pn_model, 0, 1, True) #needs to return batch, necesary_arguments,
-        pn_model.saved_log_probs = pn_model.saved_log_probs[:-1]
-        pn_model.saved_log_probs = pn_model.saved_log_probs[:-1]
-        determine_reward(dd_model, pn_model, data[0][1], args.num_forward_passes)
-        if len(pn_model.reset_locations) > 1:
-            pn_model.reset_locations[-1] += pn_model.reset_locations[-2] + 1
-
-        if (index + 1) % 5 == 0:
-            reward = update_policy_network(pn_model, pn_optimizer)
-            print("Reward", reward)
-            print()
-            print("####################################################################################################################\n")
-
-        if (index + 3) % 50 == 0:
-            pn_optimizer.zero_grad()
-            save_models(index)
-            # data = execute_exp(pn_model, args.update_size + 100, args.update_size + 100 + args.update_size, False)
-            # tr_data, tr_label, val_data, val_label = dd_loader.prepare_first_train()
-            # train_dd_model(dd_model, dd_optimizer, 75, tr_data, tr_label, val_data, val_label, args.batch_size)
-
-
+        pn_optimizer.zero_grad()
 
 
 if __name__ == '__main__':

@@ -8,6 +8,9 @@ import os
 from os.path import isfile, join
 from os import listdir
 
+
+import scipy as sp
+import scipy.stats
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -81,31 +84,56 @@ def evaluate_model(model, num_forward_passes, single_vid):
     model.train()
     smallest = 999999999
     rewards = []
+    rew = []
 
-    for index in range(int(single_vid.shape[0])):
+    for index in range(int(single_vid.shape[0] -1)):
         lst = []
-        input_to_model = torch.from_numpy(single_vid[index, :7])
+        input_to_model = torch.from_numpy(single_vid[index])
         if torch.cuda.is_available():
             input_to_model = input_to_model.cuda()
         input_to_model = Variable(input_to_model.float(), volatile=True)
         for inner_index in range(num_forward_passes):
             lst.append((model(input_to_model).cpu().data.numpy()))
-        rewards.append(calc_statistics(np.asarray(lst), single_vid[index, 7:]))
+        rewards.append(calc_statistics(np.asarray(lst), single_vid[index + 1, :9]))
+        n1, n2 = calc_norm_2(np.asarray(lst), single_vid[index + 1, :9])
+        rew.append(n2)
         del(lst[:])
-    return rewards
+    return rewards, rew
+
 
 '''Calculate "probability kinda" of hit'''
 def calc_statistics(lst, recorded_state):
     distribution = []
     mean = np.mean(lst, axis=0)
-    var = np.cov(lst, rowvar=False)
-    pdf = stats.multivariate_normal.pdf(recorded_state, mean=mean, cov=var)
+    covar = np.cov(lst, rowvar=False)
+    pdf = stats.multivariate_normal.pdf(recorded_state, mean=mean, cov=covar)
     return pdf
+
+
+def calc_norm_1(lst, recorded_state, mean):
+    delta = mean - recorded_state
+    return delta, np.linalg.norm(delta)
+
+'''Norm 2 works better because of the inclusion of exponential smoothing and the covariance relationship'''
+def calc_norm_2(lst, recorded_state):
+    mean = np.mean(lst, axis=0)
+    covar = np.cov(lst, rowvar=False)
+    delta, norm_delta = calc_norm_1(lst, recorded_state, mean)
+    delta_2 = np.exp(delta - 2*covar)
+    return norm_delta, np.linalg.norm(delta_2)
+
+def calc_confidence_interval(data, confidence=0.90):
+    n = len(data)
+    m, se = np.mean(data), scipy.stats.sem(data)
+
+    h = se * sp.stats.t._ppf((1+confidence)/2., n-1)
+    return m-h, m+h
 
 def train_dd_model(model, optimizer, iterations, tr_data, tr_label, val_data, val_label, batch_size):
     for index in range(iterations):
         dd_train_model(model, optimizer, index, tr_data, tr_label, batch_size)
         dd_validate_model(model, index, val_data, val_label, batch_size)
+
 
 def move_data_files(index_lst, number_corresponds_to_indx, base_dir, iteration):
     train_pn_lst_hit = []
@@ -117,6 +145,7 @@ def move_data_files(index_lst, number_corresponds_to_indx, base_dir, iteration):
 
     return train_pn_lst_hit, train_pn_lst_miss
 
+
 def determine_pain_classification(model, lst, filenames, base_dir, num_forward_passes, iteration):
     pdf_values = []
     index = 0
@@ -127,13 +156,19 @@ def determine_pain_classification(model, lst, filenames, base_dir, num_forward_p
     move_data_files(pdf_values, filenames, base_dir, iteration)
     return pdf_values
 
-def determine_reward(dd_model, pn_model, data, num_forward_passes):
-    adder = []
-    for index in range(data.shape[0] - 1):
-        x = np.concatenate((data[index], data[index+1, :6]))
-        adder.append(x)
-    adder = np.asarray(adder)
 
-    pdf_values = evaluate_model(dd_model, num_forward_passes, adder)
-    for element in pdf_values:
-        pn_model.rewards.append(element)
+def determine_reward(dd_model, pn_model, data, num_forward_passes):
+
+
+    pdf_values, rew = evaluate_model(dd_model, num_forward_passes, data)
+    low, high = calc_confidence_interval(rew)
+    minimum = min(rew)
+    for i in range(len(rew)):
+        if rew[i] < high:
+            rew[i] = 0
+        else:
+            rew[i] += -minimum
+
+    pn_model.reset_locations.append(len(rew) -1)
+    for element in rew:
+        pn_model.rewards.append(-element)
