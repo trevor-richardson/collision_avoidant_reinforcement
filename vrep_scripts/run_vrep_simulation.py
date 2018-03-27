@@ -105,7 +105,6 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type):
 
         while (vrep.simxGetConnectionId(clientID)!=-1 and time.time() < t_end):
             res,resolution,image=vrep.simxGetVisionSensorImage(clientID,v0,0,vrep.simx_opmode_buffer)
-            '''Execute policy network'''
 
             if res==vrep.simx_return_ok:
 
@@ -120,7 +119,7 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type):
                 ret_code, euler_angles = vrep.simxGetObjectOrientation(clientID, base_handle, -1, vrep.simx_opmode_buffer)
                 collector.append([pos[0], pos[1], pos[2], velo[0], velo[1], velo[2], euler_angles[0], euler_angles[1], euler_angles[2], action])
 
-                if (count) % 75 == 0:
+                if (count) % 50 == 0:
                     #Prepare input for AnticipationNet and execute inference --
                     torch_vid = torch.from_numpy(np.transpose(np.expand_dims((list_of_images[-1]).astype('float'),axis=0), (0, 3, 1, 2)))
                     torch_st = torch.from_numpy(np.asarray(collector[-1]).astype('float'))
@@ -161,6 +160,7 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type):
                     pn_model.saved_log_probs.append(m.log_prob(act))
 
                 count+=1
+
         return list_of_images, collector
     else:
         sys.exit()
@@ -228,10 +228,6 @@ def writeImagesStatesToFiles(pn_model, image_array, state_array, n_iter, collisi
     video_arr = np.concatenate([arr[np.newaxis] for arr in reduced_image])
     video = np.moveaxis(video_arr, -1, 1).astype(float)
     state = np.asarray(reduced_state).astype(float) #this is ready to be saved!
-
-    test_or_train = random.uniform(0, 1)
-    str_name_image = base_dir + '/data_generated/current_batch/image/' + str(n_iter) + 'collision'
-    str_name_state = base_dir + '/data_generated/current_batch/state/' + str(n_iter) + 'collision'
 
     return video, state
 
@@ -324,21 +320,17 @@ def single_simulation(ca_model, pn_model, n_iter, txt_file_counter, inp_type):
         print("need to implement new input type")
     else:
         print("need to implement new input type")
-
     pn_model(input_pn)
-
     vid_input_to_model = Variable(torch.from_numpy(np.zeros((1, 3, 64, 64))).float().cuda())
     st_input_to_model = Variable(torch.from_numpy(np.zeros(10)).float().cuda())
-
     vid_states, st_states = create_recurrent_states(ca_model, 1)
     ca_model(vid_input_to_model, st_input_to_model, vid_states, st_states)
     states = [vid_states, st_states]
+
     clientID, start_error = start()
     image_array, state_array = collectImageData(ca_model, pn_model, clientID, states, inp_type) #store these images
     collision_signal = detectCollisionSignal(clientID) #This records whether hit or miss
     end_error = end(clientID)
-    print("Hey")
-    sys.exit()
 
     write_to_hit_miss_txt(n_iter, collision_signal, txt_file_counter)
     video, state = writeImagesStatesToFiles(pn_model, image_array, state_array, n_iter, collision_signal)
