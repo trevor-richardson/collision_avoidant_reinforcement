@@ -122,12 +122,14 @@ def calc_norm_2(lst, recorded_state):
     delta_2 = np.exp(delta - 2*covar)
     return norm_delta, np.linalg.norm(delta_2)
 
+
 def calc_confidence_interval(data, confidence=0.90):
     n = len(data)
     m, se = np.mean(data), scipy.stats.sem(data)
 
     h = se * sp.stats.t._ppf((1+confidence)/2., n-1)
     return m-h, m+h
+
 
 def train_dd_model(model, optimizer, iterations, tr_data, tr_label, val_data, val_label, batch_size):
     for index in range(iterations):
@@ -159,7 +161,6 @@ def determine_pain_classification(model, lst, filenames, base_dir, num_forward_p
 
 def determine_reward(dd_model, pn_model, data, num_forward_passes):
 
-
     pdf_values, rew = evaluate_model(dd_model, num_forward_passes, data)
     low, high = calc_confidence_interval(rew)
     minimum = min(rew)
@@ -172,3 +173,5 @@ def determine_reward(dd_model, pn_model, data, num_forward_passes):
     pn_model.reset_locations.append(len(rew) -1)
     for element in rew:
         pn_model.rewards.append(-element)
+    print("Max, min, sum")
+    print(max(rew), min(rew), sum(rew))

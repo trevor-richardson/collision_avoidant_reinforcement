@@ -31,7 +31,7 @@ from policy_network import Policy_Network
 from collision_avoidance import Custom_Spatial_Temporal_Anticipation_NN
 from ca_data_loader import VideoDataGenerator
 from dd_data_loader import DeepDynamicsDataLoader
-from run_vrep_simulation import execute_exp
+from demo_vrep_simulation import execute_exp
 from train_dd import *
 from train_anticipation import *
 
@@ -111,7 +111,7 @@ ca_output_shape = 5
 
 ca_model = Custom_Spatial_Temporal_Anticipation_NN(rgb_shape, (args.no_filters_0,
     args.no_filters_1, args.no_filters_2), (args.kernel_0, args.kernel_0), args.strides, ca_output_shape,
-    padding=0)
+    padding=0, dropout_rte=args.drop_rte)
 
 dd_model = Deep_Dynamics(dd_inp_shape, 60, 40, 30, 20, 20, dd_output_shape, args.drop_rte)
 
@@ -145,65 +145,21 @@ def load_dd_model(iteration):
         print("Not a valid model to load")
         sys.exit()
 
-def update_policy_network(model, optimizer):
-    R = 0
-    policy_loss = []
-    rewards = []
-    count = 0
-    counter = len(model.saved_log_probs) - 1
-    count_reset = len(model.reset_locations) - 1
-    for r in model.rewards[::-1]:
-        if model.reset_locations[count_reset] == counter:
-            R = 0
-            count_reset = count_reset -1
-        R = r + args.gamma * R
-        rewards.insert(0, R)
-        counter = counter -1
-    rewards = torch.Tensor(rewards)
-    # rewards = (rewards - rewards.mean()) / (rewards.std() + np.finfo(np.float32).eps)
+load_models(3900)
 
-    for log_prob, reward in zip(model.saved_log_probs, rewards):
-        policy_loss.append(-log_prob * reward)
-    optimizer.zero_grad()
-    policy_loss = torch.cat(policy_loss).sum()
-    policy_loss.backward()
-    optimizer.step()
-    del model.rewards[:]
-    del model.reset_locations[:]
-    del model.saved_log_probs[:]
-    del model.updated_log_probs[:]
-    print("Current Reward: ", rewards.sum())
-    return rewards.sum()
-
-load_models(950)
 def main():
     global dd_model
     global ca_model
     global ca_optimizer
     global dd_optimizer
 
-    ca_optimizer.zero_grad()
     print("####################################################################################################################\n")
     for index in range(args.training_iterations):
 
-        data = execute_exp(ca_model, 0, 1, True) #needs to return batch, necesary_arguments,
-        ca_model.saved_log_probs = ca_model.saved_log_probs[:-1]
-        ca_model.saved_log_probs = ca_model.saved_log_probs[:-1]
-        determine_reward(dd_model, ca_model, data[0][1], args.num_forward_passes)
-        dd_optimizer.zero_grad()
-        # reward = update_policy_network(ca_model, ca_optimizer)
+        execute_exp(ca_model, 0, 1)
+        ca_optimizer.zero_grad()
 
-        if len(ca_model.reset_locations) > 1:
-            ca_model.reset_locations[-1] += ca_model.reset_locations[-2] + 1
-        if (index + 1) % 10 == 0:
-            reward = update_policy_network(ca_model, ca_optimizer)
-            ca_optimizer.zero_grad()
-            print()
-            print("####################################################################################################################\n")
 
-        if (index + 1) % 50 == 0:
-            ca_optimizer.zero_grad()
-            save_models(index + 1)
 
 
 

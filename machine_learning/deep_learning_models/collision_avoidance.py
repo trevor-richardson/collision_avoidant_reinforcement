@@ -31,5 +31,5 @@ class Custom_Spatial_Temporal_Anticipation_NN(nn.Module):
         hx_1, cx_1 = self.convlstm_1(hx_0, (states[1][0] ,states[1][1]))
         hx_2, cx_2 = self.convlstm_2(hx_1, (states[2][0] ,states[2][1]))
         dropped = self.dropout(hx_2.view(hx_2.size(0), -1)) #use dropout on flattened output of convlstm cell
-        y = F.softmax(self.fcn1(dropped), dim=0)
+        y = F.softmax(self.fcn1(dropped), dim=1)
         return y, [[hx_0, cx_0], [hx_1, cx_1], [hx_2, cx_2]]
