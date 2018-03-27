@@ -83,7 +83,7 @@ def start():
     error_code =vrep.simxStartSimulation(clientID,vrep.simx_opmode_oneshot_wait)
     return clientID, error_code
 
-def collectImageData(ca_model, pn_model, clientID, states, inp_type):
+def collectImageData(ca_model, pn_model, clientID, states, input_type):
 
     list_of_images = []
     vid_states = states[0]
@@ -109,7 +109,6 @@ def collectImageData(ca_model, pn_model, clientID, states, inp_type):
 
             if res==vrep.simx_return_ok:
 
-
                 img = np.array(image,dtype=np.uint8)
                 img.resize([resolution[1],resolution[0],3])
                 rotate_img = img.copy()
@@ -122,19 +121,36 @@ def collectImageData(ca_model, pn_model, clientID, states, inp_type):
                 collector.append([pos[0], pos[1], pos[2], velo[0], velo[1], velo[2], euler_angles[0], euler_angles[1], euler_angles[2], action])
 
                 if (count) % 75 == 0:
-                    #different ways to slice inp depending on model
+                    #Prepare input for AnticipationNet and execute inference --
+                    torch_vid = torch.from_numpy(np.transpose(np.expand_dims((list_of_images[-1]).astype('float'),axis=0), (0, 3, 1, 2)))
+                    torch_st = torch.from_numpy(np.asarray(collector[-1]).astype('float'))
+                    vid_to_ca = Variable(torch_vid.float().cuda())
+                    st_to_ca = Variable(torch_st.float().cuda())
+
+                    output, vid_states, st_states = ca_model(vid_to_ca, st_to_ca, vid_states, st_states)
 
                     #take output of collision avoidant system
                     if input_type == 0:
-                        print("flattening everything for simple policy network")
+                        if count == 0:
+                            a = torch.from_numpy(list_of_images[-1].flatten()).float().cuda()
+                            b = torch.from_numpy(list_of_images[-1].flatten()).float().cuda()
+                            c =torch.from_numpy(np.asarray(collector[-1]).astype('float')).float().cuda()
+                            d = torch.squeeze(output.data).float().cuda()
+                            input_to_model = torch.cat([a, b, c, d])
+                        else:
+                            a = torch.from_numpy(list_of_images[-1].flatten()).float().cuda()
+                            b = torch.from_numpy(list_of_images[-1].flatten()).float().cuda()
+                            c =torch.from_numpy(np.asarray(collector[-1]).astype('float')).float().cuda()
+                            d = torch.squeeze(output.data).float().cuda()
+                            input_to_model = torch.cat([a, b, c, d])
+
+                        input_to_model = Variable(input_to_model)
+                        out = pn_model(input_to_model)
                     elif input_type == 1:
                         print("flattening everying and having lstm policy network")
                     elif input_type == 2:
-                        print("input ")
+                        print("input vid and state seperate similar to AnticipationNet")
 
-                    torch_arr = torch.from_numpy(np.transpose(np.expand_dims((list_of_images[-1]).astype('float'),axis=0), (0, 3, 1, 2)))
-                    input_to_model = Variable(torch_arr.float().cuda())
-                    out, states = pn_model(input_to_model, states)
                     m = Categorical(out)
                     act = m.sample()
                     pn_model.saved_log_probs.append(m.log_prob(act))
@@ -317,15 +333,15 @@ def single_simulation(ca_model, pn_model, n_iter, txt_file_counter, inp_type):
     vid_states, st_states = create_recurrent_states(ca_model, 1)
     ca_model(vid_input_to_model, st_input_to_model, vid_states, st_states)
     states = [vid_states, st_states]
-    print("hi")
-    sys.exit()
     clientID, start_error = start()
     image_array, state_array = collectImageData(ca_model, pn_model, clientID, states, inp_type) #store these images
     collision_signal = detectCollisionSignal(clientID) #This records whether hit or miss
     end_error = end(clientID)
+    print("Hey")
+    sys.exit()
 
     write_to_hit_miss_txt(n_iter, collision_signal, txt_file_counter)
-    video, state = writeImagesStatesToFiles(model, image_array, state_array, n_iter, collision_signal)
+    video, state = writeImagesStatesToFiles(pn_model, image_array, state_array, n_iter, collision_signal)
     return video, state
 
 def execute_exp(ca_model, pn_model, iter_start, iter_end, input_type):
