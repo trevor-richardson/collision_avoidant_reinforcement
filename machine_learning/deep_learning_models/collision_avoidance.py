@@ -19,6 +19,7 @@ class AnticipationNet(nn.Module):
                         padding=0,
                         dropout_rte=0):
         super(AnticipationNet, self).__init__()
+        print("Initializing AnticipationNet")
 
         self.convlstm_0 = StatefulConv2dLSTMCell(input_shp_vid, no_filters[0], kernel_size, strides, pad=padding)
         self.convlstm_1 = StatefulConv2dLSTMCell(self.convlstm_0.output_shape, no_filters[1], kernel_size, strides, pad=padding)
@@ -27,6 +28,9 @@ class AnticipationNet(nn.Module):
         self.LSTM_0 = nn.LSTMCell(input_shp_st, hidden_0)
         self.LSTM_1 = nn.LSTMCell(hidden_0, hidden_1)
         self.LSTM_2 = nn.LSTMCell(hidden_1, hidden_2)
+        self.h_0_sz = hidden_0
+        self.h_1_sz = hidden_1
+        self.h_2_sz = hidden_2
 
         flat = self.convlstm_2.output_shape[0] * self.convlstm_2.output_shape[1] * self.convlstm_2.output_shape[2] + hidden_2
 

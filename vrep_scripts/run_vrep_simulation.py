@@ -86,6 +86,8 @@ def start():
 def collectImageData(ca_model, pn_model, clientID, states, inp_type):
 
     list_of_images = []
+    vid_states = states[0]
+    st_states = states[1]
     collector = []
     if clientID!=-1:
         res,v0=vrep.simxGetObjectHandle(clientID,'Vision_sensor',vrep.simx_opmode_oneshot_wait)
@@ -264,20 +266,59 @@ def write_to_hit_miss_txt(n_iter, collision_signal, txt_file_counter):
         print(z_permanent, file=new_pos_file)
 
 
-def create_lstm_states(shape, batch_size):
-    c = Variable(torch.zeros(batch_size, shape[0], shape[1], shape[2])).float().cuda()
-    h = Variable(torch.zeros(batch_size, shape[0], shape[1], shape[2])).float().cuda()
+def create_convlstm_states(shape, batch):
+    if torch.cuda.is_available():
+        c = Variable(torch.zeros(batch, shape[0], shape[1], shape[2])).float().cuda()
+        h = Variable(torch.zeros(batch, shape[0], shape[1], shape[2])).float().cuda()
+    else:
+        c = Variable(torch.zeros(batch, shape[0], shape[1], shape[2])).float()
+        h = Variable(torch.zeros(batch, shape[0], shape[1], shape[2])).float()
     return (h, c)
 
-def single_simulation(ca_model, pn_model, n_iter, txt_file_counter, inp_type):
-    # print("####################################################################################################################")
-    prev0 = create_lstm_states(model.convlstm_0.output_shape, 1)
-    prev1 = create_lstm_states(model.convlstm_1.output_shape, 1)
-    prev2 = create_lstm_states(model.convlstm_2.output_shape, 1)
-    states = [prev0, prev1, prev2]
-    input_to_model = Variable(torch.from_numpy(np.zeros((1, 3, 64, 64))).float().cuda())
-    out = model(input_to_model, states)
+def create_lstm_states(shape, batch):
+    if torch.cuda.is_available():
+        c = Variable(torch.zeros(batch, shape).float().cuda())
+        h = Variable(torch.zeros(batch, shape).float().cuda())
+    else:
+        c = Variable(torch.zeros(batch, shape).float())
+        h = Variable(torch.zeros(batch, shape).float())
+    return (h, c)
 
+def create_recurrent_states(model, batch):
+    prev0 = create_convlstm_states(model.convlstm_0.output_shape, batch)
+    prev1 = create_convlstm_states(model.convlstm_1.output_shape, batch)
+    prev2 = create_convlstm_states(model.convlstm_2.output_shape, batch)
+
+    vid_states = [prev0, prev1, prev2]
+
+    prev_0 = create_lstm_states(model.h_0_sz, batch)
+    prev_1 = create_lstm_states(model.h_1_sz, batch)
+    prev_2 = create_lstm_states(model.h_2_sz, batch)
+
+    st_states = [prev_0, prev_1, prev_2]
+
+    return vid_states, st_states
+
+def single_simulation(ca_model, pn_model, n_iter, txt_file_counter, inp_type):
+
+    #initial inference for each model to prepare data pipeline
+    if inp_type == 0:
+        input_pn = Variable(torch.from_numpy(np.zeros(64*64*3*2+10+10)).float().cuda())
+    elif inp_type == 1:
+        print("need to implement new input type")
+    else:
+        print("need to implement new input type")
+
+    pn_model(input_pn)
+
+    vid_input_to_model = Variable(torch.from_numpy(np.zeros((1, 3, 64, 64))).float().cuda())
+    st_input_to_model = Variable(torch.from_numpy(np.zeros(10)).float().cuda())
+
+    vid_states, st_states = create_recurrent_states(ca_model, 1)
+    ca_model(vid_input_to_model, st_input_to_model, vid_states, st_states)
+    states = [vid_states, st_states]
+    print("hi")
+    sys.exit()
     clientID, start_error = start()
     image_array, state_array = collectImageData(ca_model, pn_model, clientID, states, inp_type) #store these images
     collision_signal = detectCollisionSignal(clientID) #This records whether hit or miss

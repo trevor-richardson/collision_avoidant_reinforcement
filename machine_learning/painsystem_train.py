@@ -204,6 +204,8 @@ def update_policy_network(model, optimizer):
 load_ca_model()
 load_dd_model()
 
+#some method to save information to data log file while training
+
 def main():
     global dd_model
     global ca_model
@@ -212,13 +214,13 @@ def main():
     global dd_optimizer
     global pn_optimizer
 
-    '''The following Collision Anticipation Network is a mentor for the Policy Network. It is pretrained, and no grads required'''
+    '''The following Collision Anticipation Network is a
+        mentor for the Policy Network. It is pretrained, and no grads required'''
     ca_optimizer.zero_grad()
     for param in ca_model.parameters():
         param.requires_grad=False
 
     print("####################################################################################################################\n")
-    sys.exit()
     for index in range(args.training_iterations):
 
         data = execute_exp(ca_model, pn_model, 0, 1, args.policy_inp_type) #needs to return batch, necesary_arguments,
@@ -226,10 +228,11 @@ def main():
         pn_model.saved_log_probs = pn_model.saved_log_probs[:-1]
         determine_reward(dd_model, pn_model, data[0][1], args.num_forward_passes)
         dd_optimizer.zero_grad()
-        # reward = update_policy_network(ca_model, ca_optimizer)
+        ca_optimizer.zero_grad()
 
-        if len(ca_model.reset_locations) > 1:
+        if len(pn_model.reset_locations) > 1:
             pn_model.reset_locations[-1] += pn_model.reset_locations[-2] + 1
+
         if (index + 1) % 10 == 0:
             reward = update_policy_network(pn_model, pn_optimizer)
             pn_optimizer.zero_grad()
@@ -238,7 +241,6 @@ def main():
         if (index + 1) % 50 == 0:
             pn_optimizer.zero_grad()
             save_models(index + 1)
-
 
 
 if __name__ == '__main__':
