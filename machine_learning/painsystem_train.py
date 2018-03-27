@@ -71,8 +71,8 @@ parser.add_argument('--num_forward_passes', type=int, default=32, metavar='N',
                     help='Number of forward passes for dropout at test time for multivariate_normal pdf calc')
 parser.add_argument('--exp_iteration', type=int, default=64, metavar='N',
                     help='Batch size default size is 64')
-parser.add_argument('--batch_size', type=int, default=64, metavar='N',
-                    help='Number of hit and number of miss videos (default 64)')
+parser.add_argument('--batch_size', type=int, default=10, metavar='N',
+                    help='size_of batch (default 10)')
 parser.add_argument('--no_filters_0', type=int, default=40, metavar='N',
                     help='Number of activation maps to in layer 0 (default 40)')
 parser.add_argument('--no_filters_1', type=int, default=30, metavar='N',
@@ -214,6 +214,8 @@ def main():
     global dd_optimizer
     global pn_optimizer
 
+    num_updates = 1
+
     '''The following Collision Anticipation Network is a
         mentor for the Policy Network. It is pretrained, and no grads required'''
     ca_optimizer.zero_grad()
@@ -235,6 +237,13 @@ def main():
 
         if (index + 1) % 10 == 0:
             reward = update_policy_network(pn_model, pn_optimizer)
+            with open("results.txt", "a") as myfile:
+                myfile.write(str(num_updates))
+                myfile.write(",")
+                myfile.write(str(reward))
+                myfile.write("\n")
+                num_updates+=1
+
             pn_optimizer.zero_grad()
             print("\n####################################################################################################################\n")
 
