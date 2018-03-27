@@ -28,8 +28,8 @@ sys.path.append(base_dir + '/vrep_scripts/')
 
 from deep_dynamics import Deep_Dynamics
 from policy_network import Policy_Network
-from collision_avoidance import Custom_Spatial_Temporal_Anticipation_NN
-from ca_data_loader import VideoDataGenerator
+from collision_avoidance import AnticipationNet
+
 from dd_data_loader import DeepDynamicsDataLoader
 from run_vrep_simulation import execute_exp
 from train_dd import *
@@ -61,6 +61,10 @@ def str2bool(v):
 parser = argparse.ArgumentParser(description='Reinforcement Learning Guided by Deep Dynamics and Anticipation Models in Pytorch')
 
 #training and testing args
+parser.add_argument('--pred_window', type=int, default=10, metavar='N',
+                    help='How far in the future collision anticipation can guess')
+parser.add_argument('--policy_inp_type', type=int, default=0, metavar='N',
+                    help='Type of input for policy net')
 parser.add_argument('--training_iterations', type=int, default=30000, metavar='N',
                     help='Number of times I want to train a reinforcement learning model')
 parser.add_argument('--num_forward_passes', type=int, default=32, metavar='N',
@@ -107,22 +111,34 @@ args = parser.parse_args()
 rgb_shape = (3, 64, 64)
 dd_inp_shape = (10)
 dd_output_shape = (9)
-ca_output_shape = 5
+ca_output_shape = 10
 
-ca_model = Custom_Spatial_Temporal_Anticipation_NN(rgb_shape, (args.no_filters_0,
-    args.no_filters_1, args.no_filters_2), (args.kernel_0, args.kernel_0), args.strides, ca_output_shape,
-    padding=0)
+pn_output = 5
+pn_inp = 3 * 64 * 64 * 2 + 10 + 10
+
+pn_model = Policy_Network(pn_inp, args.hidden_0, args.hidden_1, args.hidden_2, args.hidden_3, pn_output)
+
+h_0 = 15
+h_1 = 15
+h_2 = 15
+h_out = 50
+ca_model = AnticipationNet(rgb_shape, dd_inp_shape, h_0, h_1, h_2, h_out, (args.no_filters_0,
+    args.no_filters_1, args.no_filters_2), (args.kernel_0, args.kernel_0), args.strides, args.pred_window,
+    padding=0, dropout_rte=args.drop_rte)
+
 
 dd_model = Deep_Dynamics(dd_inp_shape, 60, 40, 30, 20, 20, dd_output_shape, args.drop_rte)
 
+
 if torch.cuda.is_available():
     print("Using GPU acceleration")
+    pn_model.cuda()
     ca_model.cuda()
     dd_model.cuda()
 
 ca_optimizer = torch.optim.Adam(ca_model.parameters(), lr=args.lr)
 dd_optimizer = torch.optim.Adam(dd_model.parameters(), lr=args.lr)
-
+pn_optimizer = torch.optim.Adam(pn_model.parameters(), lr=args.lr)
 
 def save_models(iteration):
     torch.save(ca_model.state_dict(), base_dir + '/machine_learning/saved_models/ca' + str(iteration) + '.pth')
@@ -132,15 +148,24 @@ def load_models(iteration):
     global ca_model
     try:
         dd_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/dd_model/0.11827140841.pth"))
-        ca_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/ca" + str(iteration) + ".pth"))
+        ca_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/ca_model/780.5778702075141.pth"))
+        pn_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/ca" + str(iteration) + ".pth"))
     except ValueError:
         print("Not a valid model to load")
         sys.exit()
 
-def load_dd_model(iteration):
+def load_dd_model():
     global dd_model
     try:
         dd_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/dd_model/0.11827140841.pth"))
+    except ValueError:
+        print("Not a valid model to load")
+        sys.exit()
+
+def load_ca_model():
+    global ca_model
+    try:
+        ca_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/ca_model/780.5778702075141.pth"))
     except ValueError:
         print("Not a valid model to load")
         sys.exit()
@@ -175,34 +200,43 @@ def update_policy_network(model, optimizer):
     print("Current Reward: ", rewards.sum())
     return rewards.sum()
 
-load_models(950)
+# load_models(950)
+load_ca_model()
+load_dd_model()
+
 def main():
     global dd_model
     global ca_model
+    global pn_model
     global ca_optimizer
     global dd_optimizer
+    global pn_optimizer
 
+    '''The following Collision Anticipation Network is a mentor for the Policy Network. It is pretrained, and no grads required'''
     ca_optimizer.zero_grad()
+    for param in ca_model.parameters():
+        param.requires_grad=False
+
     print("####################################################################################################################\n")
+    sys.exit()
     for index in range(args.training_iterations):
 
-        data = execute_exp(ca_model, 0, 1, True) #needs to return batch, necesary_arguments,
-        ca_model.saved_log_probs = ca_model.saved_log_probs[:-1]
-        ca_model.saved_log_probs = ca_model.saved_log_probs[:-1]
-        determine_reward(dd_model, ca_model, data[0][1], args.num_forward_passes)
+        data = execute_exp(ca_model, pn_model, 0, 1, args.policy_inp_type) #needs to return batch, necesary_arguments,
+        pn_model.saved_log_probs = pn_model.saved_log_probs[:-1]
+        pn_model.saved_log_probs = pn_model.saved_log_probs[:-1]
+        determine_reward(dd_model, pn_model, data[0][1], args.num_forward_passes)
         dd_optimizer.zero_grad()
         # reward = update_policy_network(ca_model, ca_optimizer)
 
         if len(ca_model.reset_locations) > 1:
-            ca_model.reset_locations[-1] += ca_model.reset_locations[-2] + 1
+            pn_model.reset_locations[-1] += pn_model.reset_locations[-2] + 1
         if (index + 1) % 10 == 0:
-            reward = update_policy_network(ca_model, ca_optimizer)
-            ca_optimizer.zero_grad()
-            print()
-            print("####################################################################################################################\n")
+            reward = update_policy_network(pn_model, pn_optimizer)
+            pn_optimizer.zero_grad()
+            print("\n####################################################################################################################\n")
 
         if (index + 1) % 50 == 0:
-            ca_optimizer.zero_grad()
+            pn_optimizer.zero_grad()
             save_models(index + 1)
 
 

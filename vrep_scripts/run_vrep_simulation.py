@@ -83,7 +83,7 @@ def start():
     error_code =vrep.simxStartSimulation(clientID,vrep.simx_opmode_oneshot_wait)
     return clientID, error_code
 
-def collectImageData(model, clientID, states):
+def collectImageData(ca_model, pn_model, clientID, states, inp_type):
 
     list_of_images = []
     collector = []
@@ -105,7 +105,6 @@ def collectImageData(model, clientID, states):
             res,resolution,image=vrep.simxGetVisionSensorImage(clientID,v0,0,vrep.simx_opmode_buffer)
             '''Execute policy network'''
 
-
             if res==vrep.simx_return_ok:
 
 
@@ -121,17 +120,27 @@ def collectImageData(model, clientID, states):
                 collector.append([pos[0], pos[1], pos[2], velo[0], velo[1], velo[2], euler_angles[0], euler_angles[1], euler_angles[2], action])
 
                 if (count) % 75 == 0:
+                    #different ways to slice inp depending on model
+
+                    #take output of collision avoidant system
+                    if input_type == 0:
+                        print("flattening everything for simple policy network")
+                    elif input_type == 1:
+                        print("flattening everying and having lstm policy network")
+                    elif input_type == 2:
+                        print("input ")
+
                     torch_arr = torch.from_numpy(np.transpose(np.expand_dims((list_of_images[-1]).astype('float'),axis=0), (0, 3, 1, 2)))
                     input_to_model = Variable(torch_arr.float().cuda())
-                    out, states = model(input_to_model, states)
+                    out, states = pn_model(input_to_model, states)
                     m = Categorical(out)
                     act = m.sample()
-                    model.saved_log_probs.append(m.log_prob(act))
+                    pn_model.saved_log_probs.append(m.log_prob(act))
                     action = (act -2)  * 15
                     return_val = vrep.simxSetJointTargetVelocity(clientID, left_handle, action, vrep.simx_opmode_oneshot)
                     return_val2 = vrep.simxSetJointTargetVelocity(clientID, right_handle, action, vrep.simx_opmode_oneshot_wait)
                 else:
-                    model.saved_log_probs.append(m.log_prob(act))
+                    pn_model.saved_log_probs.append(m.log_prob(act))
 
                 count+=1
         return list_of_images, collector
@@ -156,7 +165,7 @@ def detectCollisionSignal(clientID):
     else:
         return 0
 
-def writeImagesStatesToFiles(model, image_array, state_array, n_iter, collision_signal):
+def writeImagesStatesToFiles(pn_model, image_array, state_array, n_iter, collision_signal):
     reduced_image = []
     reduced_state = []
 
@@ -169,7 +178,7 @@ def writeImagesStatesToFiles(model, image_array, state_array, n_iter, collision_
 
     reduced_image.append(image_array[0])
     reduced_state.append(state_array[0])
-    model.updated_log_probs.append(model.saved_log_probs[0])
+    pn_model.updated_log_probs.append(pn_model.saved_log_probs[0])
 
     for enumerator in range(len(image_array)):
         if enumerator % time_dilation == 0 and enumerator != 0:
@@ -177,25 +186,25 @@ def writeImagesStatesToFiles(model, image_array, state_array, n_iter, collision_
             if noise < .1:
                 reduced_state.append(state_array[enumerator - 2])
                 reduced_image.append(image_array[enumerator - 2])
-                model.updated_log_probs.append(model.saved_log_probs[enumerator - 2])
+                pn_model.updated_log_probs.append(pn_model.saved_log_probs[enumerator - 2])
             elif noise < .2:
                 reduced_image.append(image_array[enumerator - 1])
                 reduced_state.append(state_array[enumerator - 1])
-                model.updated_log_probs.append(model.saved_log_probs[enumerator - 1])
+                pn_model.updated_log_probs.append(pn_model.saved_log_probs[enumerator - 1])
             elif noise < .3:
                 if enumerator + 1 < len(image_array):
                     reduced_state.append(state_array[enumerator + 1])
                     reduced_image.append(image_array[enumerator + 1])
-                    model.updated_log_probs.append(model.saved_log_probs[enumerator + 1])
+                    pn_model.updated_log_probs.append(pn_model.saved_log_probs[enumerator + 1])
             elif noise < .4:
                 if enumerator + 2 < len(image_array):
                     reduced_state.append(state_array[enumerator + 2])
                     reduced_image.append(image_array[enumerator + 2])
-                    model.updated_log_probs.append(model.saved_log_probs[enumerator + 2])
+                    pn_model.updated_log_probs.append(pn_model.saved_log_probs[enumerator + 2])
             else:
                 reduced_image.append(image_array[enumerator])
                 reduced_state.append(state_array[enumerator])
-                model.updated_log_probs.append(model.saved_log_probs[enumerator])
+                pn_model.updated_log_probs.append(pn_model.saved_log_probs[enumerator])
 
 
     video_arr = np.concatenate([arr[np.newaxis] for arr in reduced_image])
@@ -260,7 +269,7 @@ def create_lstm_states(shape, batch_size):
     h = Variable(torch.zeros(batch_size, shape[0], shape[1], shape[2])).float().cuda()
     return (h, c)
 
-def single_simulation(model, n_iter, txt_file_counter, volatile):
+def single_simulation(ca_model, pn_model, n_iter, txt_file_counter, inp_type):
     # print("####################################################################################################################")
     prev0 = create_lstm_states(model.convlstm_0.output_shape, 1)
     prev1 = create_lstm_states(model.convlstm_1.output_shape, 1)
@@ -270,7 +279,7 @@ def single_simulation(model, n_iter, txt_file_counter, volatile):
     out = model(input_to_model, states)
 
     clientID, start_error = start()
-    image_array, state_array = collectImageData(model, clientID, states) #store these images
+    image_array, state_array = collectImageData(ca_model, pn_model, clientID, states, inp_type) #store these images
     collision_signal = detectCollisionSignal(clientID) #This records whether hit or miss
     end_error = end(clientID)
 
@@ -278,11 +287,11 @@ def single_simulation(model, n_iter, txt_file_counter, volatile):
     video, state = writeImagesStatesToFiles(model, image_array, state_array, n_iter, collision_signal)
     return video, state
 
-def execute_exp(model, iter_start, iter_end, volatile):
+def execute_exp(ca_model, pn_model, iter_start, iter_end, input_type):
     txt_file_counter = 1
     lst = []
     for current_iteration in range(iter_start, iter_end):
-        video, state = single_simulation(model, current_iteration, txt_file_counter, volatile)
+        video, state = single_simulation(ca_model, pn_model, current_iteration, txt_file_counter, input_type)
         lst.append([video, state])
         txt_file_counter+=1
     return lst
