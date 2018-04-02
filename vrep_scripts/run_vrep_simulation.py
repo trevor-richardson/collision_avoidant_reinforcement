@@ -99,7 +99,6 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type):
         res,resolution,image=vrep.simxGetVisionSensorImage(clientID,v0,0,vrep.simx_opmode_streaming)
         ret_code, euler_angles = vrep.simxGetObjectOrientation(clientID, base_handle, -1, vrep.simx_opmode_streaming)
         t_end = time.time() + 2.8
-        collision_bool = False
         count = 0
         action = 0
 
@@ -170,20 +169,7 @@ def end(clientID):
     vrep.simxFinish(clientID)
     return error_code
 
-#check if there was a collision by calling globale variable set inside VREP
-def detectCollisionSignal(clientID):
-    detector = 0
-    collision_str = "collision_signal"
-    detector = vrep.simxGetIntegerSignal(clientID, collision_str, vrep.simx_opmode_oneshot_wait)
-    start = time.time()
-    while(time.time() < start +1):
-        pass
-    if detector[1] == 1:
-        return 1
-    else:
-        return 0
-
-def writeImagesStatesToFiles(pn_model, image_array, state_array, n_iter, collision_signal):
+def writeImagesStatesToFiles(pn_model, image_array, state_array, n_iter):
     reduced_image = []
     reduced_state = []
 
@@ -231,7 +217,7 @@ def writeImagesStatesToFiles(pn_model, image_array, state_array, n_iter, collisi
 
     return video, state
 
-def write_to_hit_miss_txt(n_iter, collision_signal, txt_file_counter):
+def write_to_hit_miss_txt(n_iter, txt_file_counter):
     filename_newpos = base_dir + '/vrep_scripts/saved_vel_pos_data/current_position.txt'
     filename_newpos0 = base_dir + '/vrep_scripts/saved_vel_pos_data/current_position0.txt'
     filename_newpos1 = base_dir + '/vrep_scripts/saved_vel_pos_data/current_position1.txt'
@@ -329,11 +315,10 @@ def single_simulation(ca_model, pn_model, n_iter, txt_file_counter, inp_type):
 
     clientID, start_error = start()
     image_array, state_array = collectImageData(ca_model, pn_model, clientID, states, inp_type) #store these images
-    collision_signal = detectCollisionSignal(clientID) #This records whether hit or miss
     end_error = end(clientID)
 
-    write_to_hit_miss_txt(n_iter, collision_signal, txt_file_counter)
-    video, state = writeImagesStatesToFiles(pn_model, image_array, state_array, n_iter, collision_signal)
+    write_to_hit_miss_txt(n_iter, txt_file_counter)
+    video, state = writeImagesStatesToFiles(pn_model, image_array, state_array, n_iter)
     return video, state
 
 def execute_exp(ca_model, pn_model, iter_start, iter_end, input_type):

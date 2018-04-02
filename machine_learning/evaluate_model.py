@@ -28,7 +28,7 @@ sys.path.append(base_dir + '/vrep_scripts/')
 
 from deep_dynamics import Deep_Dynamics
 from policy_network import Policy_Network
-from collision_avoidance import Custom_Spatial_Temporal_Anticipation_NN
+from collision_avoidance import AnticipationNet
 from ca_data_loader import VideoDataGenerator
 from dd_data_loader import DeepDynamicsDataLoader
 from demo_vrep_simulation import execute_exp
@@ -59,6 +59,10 @@ def str2bool(v):
 
 
 parser = argparse.ArgumentParser(description='Reinforcement Learning Guided by Deep Dynamics and Anticipation Models in Pytorch')
+parser.add_argument('--pred_window', type=int, default=10, metavar='N',
+                    help='How far in the future collision anticipation can guess')
+parser.add_argument('--policy_inp_type', type=int, default=0, metavar='N',
+                    help='Type of input for policy net')
 
 #training and testing args
 parser.add_argument('--training_iterations', type=int, default=30000, metavar='N',
@@ -107,59 +111,59 @@ args = parser.parse_args()
 rgb_shape = (3, 64, 64)
 dd_inp_shape = (10)
 dd_output_shape = (9)
-ca_output_shape = 5
+ca_output_shape = 10
 
-ca_model = Custom_Spatial_Temporal_Anticipation_NN(rgb_shape, (args.no_filters_0,
-    args.no_filters_1, args.no_filters_2), (args.kernel_0, args.kernel_0), args.strides, ca_output_shape,
+pn_output = 5
+pn_inp = 3 * 64 * 64 * 2 + 10 + 10
+
+pn_model = Policy_Network(pn_inp, args.hidden_0, args.hidden_1, args.hidden_2, args.hidden_3, pn_output)
+
+h_0 = 15
+h_1 = 15
+h_2 = 15
+h_out = 50
+ca_model = AnticipationNet(rgb_shape, dd_inp_shape, h_0, h_1, h_2, h_out, (args.no_filters_0,
+    args.no_filters_1, args.no_filters_2), (args.kernel_0, args.kernel_0), args.strides, args.pred_window,
     padding=0, dropout_rte=args.drop_rte)
 
-dd_model = Deep_Dynamics(dd_inp_shape, 60, 40, 30, 20, 20, dd_output_shape, args.drop_rte)
 
 if torch.cuda.is_available():
     print("Using GPU acceleration")
+    pn_model.cuda()
     ca_model.cuda()
-    dd_model.cuda()
 
 ca_optimizer = torch.optim.Adam(ca_model.parameters(), lr=args.lr)
-dd_optimizer = torch.optim.Adam(dd_model.parameters(), lr=args.lr)
+pn_optimizer = torch.optim.Adam(pn_model.parameters(), lr=args.lr)
 
-
-def save_models(iteration):
-    torch.save(ca_model.state_dict(), base_dir + '/machine_learning/saved_models/ca' + str(iteration) + '.pth')
 
 def load_models(iteration):
-    global dd_model
     global ca_model
     try:
-        dd_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/dd_model/0.11827140841.pth"))
-        ca_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/ca" + str(iteration) + ".pth"))
+        ca_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/ca_model/780.5778702075141.pth"))
+        pn_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/pn_model/pn" + str(iteration) + ".pth"))
     except ValueError:
         print("Not a valid model to load")
         sys.exit()
 
-def load_dd_model(iteration):
-    global dd_model
-    try:
-        dd_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/dd_model/0.11827140841.pth"))
-    except ValueError:
-        print("Not a valid model to load")
-        sys.exit()
 
-load_models(3900)
+load_models(9950)
 
 def main():
-    global dd_model
+    global pn_model
+    global pn_optimizer
     global ca_model
     global ca_optimizer
-    global dd_optimizer
 
-    print("####################################################################################################################\n")
     for index in range(args.training_iterations):
+        print("####################################################################################################################\n")
 
-        execute_exp(ca_model, 0, 1)
+        execute_exp(ca_model, pn_model, 0, 1, args.policy_inp_type)
         ca_optimizer.zero_grad()
-
-
+        pn_optimizer.zero_grad()
+        del(pn_model.saved_log_probs[:])
+        del(pn_model.updated_log_probs[:])
+        del(pn_model.rewards[:])
+        del(pn_model.reset_locations[:])
 
 
 

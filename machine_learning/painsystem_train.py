@@ -204,7 +204,6 @@ def update_policy_network(model, optimizer):
 load_ca_model()
 load_dd_model()
 
-#some method to save information to data log file while training
 
 def main():
     global dd_model
