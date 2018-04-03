@@ -31,7 +31,7 @@ from policy_network import Policy_Network
 from collision_avoidance import AnticipationNet
 from policy_convlstm_net import ConvLSTMPolicyNet
 from run_vrep_simulation import execute_exp
-from train_dd import *
+from pertubation_detection import *
 
 ''' Global Variables of Interest For Configurability '''
 
