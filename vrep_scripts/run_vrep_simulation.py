@@ -84,10 +84,20 @@ def start():
     return clientID, error_code
 
 def collectImageData(ca_model, pn_model, clientID, states, input_type):
+    ca_model.eval()
+    pn_model.train()
 
     list_of_images = []
-    vid_states = states[0]
-    st_states = states[1]
+    if input_type == 0:
+        vid_states = states[0]
+        st_states = states[1]
+
+    elif input_type == 1:
+        vid_states = states[2]
+        st_states = states[3]
+        pn_vidstates = states[0]
+        pn_ststates = states[1]
+
     collector = []
     if clientID!=-1:
         res,v0=vrep.simxGetObjectHandle(clientID,'Vision_sensor',vrep.simx_opmode_oneshot_wait)
@@ -126,7 +136,7 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type):
                     st_to_ca = Variable(torch_st.float().cuda())
 
                     output, vid_states, st_states = ca_model(vid_to_ca, st_to_ca, vid_states, st_states)
-
+                    output.detach_()
                     #take output of collision avoidant system
                     if input_type == 0:
                         if count == 0:
@@ -145,9 +155,16 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type):
                         input_to_model = Variable(input_to_model)
                         out = pn_model(input_to_model)
                     elif input_type == 1:
-                        print("flattening everying and having lstm policy network")
+                        pn_vid = torch.from_numpy(np.transpose(np.expand_dims((list_of_images[-1]).astype('float'),axis=0), (0, 3, 1, 2)))
+                        vid_input = Variable(pn_vid.float().cuda())
+                        c = torch.from_numpy(np.asarray(collector[-1]).astype('float')).float().cuda()
+                        d = torch.squeeze(output.data).float().cuda()
+                        st_input = Variable(torch.cat([c, d]))
+                        out, pn_vidstates, pn_ststates = pn_model(vid_input, st_input, pn_vidstates, pn_ststates)
+
                     elif input_type == 2:
-                        print("input vid and state seperate similar to AnticipationNet")
+                        print("Error 12")
+                        sys.exit()
 
                     m = Categorical(out)
                     act = m.sample()
@@ -182,6 +199,7 @@ def writeImagesStatesToFiles(pn_model, image_array, state_array, n_iter):
 
     reduced_image.append(image_array[0])
     reduced_state.append(state_array[0])
+    lst = []
     pn_model.updated_log_probs.append(pn_model.saved_log_probs[0])
 
     for enumerator in range(len(image_array)):
@@ -210,6 +228,8 @@ def writeImagesStatesToFiles(pn_model, image_array, state_array, n_iter):
                 reduced_state.append(state_array[enumerator])
                 pn_model.updated_log_probs.append(pn_model.saved_log_probs[enumerator])
 
+
+    del(pn_model.saved_log_probs[:])
 
     video_arr = np.concatenate([arr[np.newaxis] for arr in reduced_image])
     video = np.moveaxis(video_arr, -1, 1).astype(float)
@@ -263,7 +283,6 @@ def write_to_hit_miss_txt(n_iter, txt_file_counter):
         print(y_list_of_positions6[txt_file_counter + 1], file=new_pos_file)
         print(z_permanent, file=new_pos_file)
 
-
 def create_convlstm_states(shape, batch):
     if torch.cuda.is_available():
         c = Variable(torch.zeros(batch, shape[0], shape[1], shape[2])).float().cuda()
@@ -299,19 +318,24 @@ def create_recurrent_states(model, batch):
 
 def single_simulation(ca_model, pn_model, n_iter, txt_file_counter, inp_type):
 
-    #initial inference for each model to prepare data pipeline
-    if inp_type == 0:
-        input_pn = Variable(torch.from_numpy(np.zeros(64*64*3*2+10+10)).float().cuda())
-    elif inp_type == 1:
-        print("need to implement new input type")
-    else:
-        print("need to implement new input type")
-    pn_model(input_pn)
     vid_input_to_model = Variable(torch.from_numpy(np.zeros((1, 3, 64, 64))).float().cuda())
     st_input_to_model = Variable(torch.from_numpy(np.zeros(10)).float().cuda())
     vid_states, st_states = create_recurrent_states(ca_model, 1)
     ca_model(vid_input_to_model, st_input_to_model, vid_states, st_states)
-    states = [vid_states, st_states]
+    #initial inference for each model to prepare data pipeline
+    if inp_type == 0:
+        input_pn = Variable(torch.from_numpy(np.zeros(64*64*3*2+10+10)).float().cuda())
+        pn_model(input_pn)
+        states = [vid_states, st_states]
+    elif inp_type == 1:
+        vid_input_to_pn = Variable(torch.from_numpy(np.zeros((1, 3, 64, 64))).float().cuda())
+        st_input_to_pn = Variable(torch.from_numpy(np.zeros(20)).float().cuda())
+        pn_vid_states, pn_st_states = create_recurrent_states(pn_model, 1)
+        pn_model(vid_input_to_pn, st_input_to_pn, pn_vid_states, pn_st_states)
+        states = [pn_vid_states, pn_st_states, vid_states, st_states]
+    else:
+        print("need to implement new input type")
+        sys.exit()
 
     clientID, start_error = start()
     image_array, state_array = collectImageData(ca_model, pn_model, clientID, states, inp_type) #store these images

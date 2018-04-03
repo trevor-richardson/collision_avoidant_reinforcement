@@ -151,13 +151,13 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type):
                         print("flattening everying and having lstm policy network")
                     elif input_type == 2:
                         print("input vid and state seperate similar to AnticipationNet")
-                    print(out.data, out.data.max(0)[1])
 
                     m = Categorical(out)
                     act = m.sample()
                     pn_model.saved_log_probs.append(m.log_prob(act))
                     # action = (act -2)  * 15
-                    action = (out.data.max(0)[1]-2) * 15
+
+                    action = (out.data.max()[1]-2) * 15
                     return_val = vrep.simxSetJointTargetVelocity(clientID, left_handle, action, vrep.simx_opmode_oneshot)
                     return_val2 = vrep.simxSetJointTargetVelocity(clientID, right_handle, action, vrep.simx_opmode_oneshot_wait)
                 else:

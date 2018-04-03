@@ -145,7 +145,6 @@ def load_models(iteration):
         print("Not a valid model to load")
         sys.exit()
 
-
 load_models(9950)
 
 def main():

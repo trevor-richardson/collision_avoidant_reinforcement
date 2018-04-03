@@ -29,6 +29,7 @@ sys.path.append(base_dir + '/vrep_scripts/')
 from deep_dynamics import Deep_Dynamics
 from policy_network import Policy_Network
 from collision_avoidance import AnticipationNet
+from policy_convlstm_net import ConvLSTMPolicyNet
 
 from dd_data_loader import DeepDynamicsDataLoader
 from run_vrep_simulation import execute_exp
@@ -56,7 +57,6 @@ def str2bool(v):
         return False
     else:
         raise argparse.ArgumentTypeError('Boolean value expected.')
-
 
 parser = argparse.ArgumentParser(description='Reinforcement Learning Guided by Deep Dynamics and Anticipation Models in Pytorch')
 
@@ -112,23 +112,30 @@ rgb_shape = (3, 64, 64)
 dd_inp_shape = (10)
 dd_output_shape = (9)
 ca_output_shape = 10
-
-pn_output = 5
-pn_inp = 3 * 64 * 64 * 2 + 10 + 10
-
-pn_model = Policy_Network(pn_inp, args.hidden_0, args.hidden_1, args.hidden_2, args.hidden_3, pn_output)
-
 h_0 = 15
 h_1 = 15
 h_2 = 15
 h_out = 50
+pn_output = 5
+
+if args.policy_inp_type == 0:
+    pn_inp = 3 * 64 * 64 * 2 + 10 + 10
+    pn_model = Policy_Network(pn_inp, args.hidden_0, args.hidden_1, args.hidden_2, args.hidden_3, pn_output)
+elif args.policy_inp_type == 1:
+    st_shp = (dd_inp_shape+args.pred_window)
+    pn_model = ConvLSTMPolicyNet(rgb_shape, st_shp, h_0, h_1, h_2, h_out, (args.no_filters_0,
+        args.no_filters_1, args.no_filters_2), (args.kernel_0, args.kernel_0), args.strides, pn_output,
+        padding=0)
+else:
+    print("Enter a correct input type")
+    sys.exit()
+
+
 ca_model = AnticipationNet(rgb_shape, dd_inp_shape, h_0, h_1, h_2, h_out, (args.no_filters_0,
     args.no_filters_1, args.no_filters_2), (args.kernel_0, args.kernel_0), args.strides, args.pred_window,
     padding=0, dropout_rte=args.drop_rte)
 
-
 dd_model = Deep_Dynamics(dd_inp_shape, 60, 40, 30, 20, 20, dd_output_shape, args.drop_rte)
-
 
 if torch.cuda.is_available():
     print("Using GPU acceleration")
@@ -141,11 +148,12 @@ dd_optimizer = torch.optim.Adam(dd_model.parameters(), lr=args.lr)
 pn_optimizer = torch.optim.Adam(pn_model.parameters(), lr=args.lr)
 
 def save_models(iteration):
-    torch.save(ca_model.state_dict(), base_dir + '/machine_learning/saved_models/ca' + str(iteration) + '.pth')
+    torch.save(pn_model.state_dict(), base_dir + '/machine_learning/saved_models/pn' + str(iteration) + '.pth')
 
 def load_models(iteration):
     global dd_model
     global ca_model
+    global pn_model
     try:
         dd_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/dd_model/0.11827140841.pth"))
         ca_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/ca_model/780.5778702075141.pth"))
@@ -177,6 +185,7 @@ def update_policy_network(model, optimizer):
     count = 0
     counter = len(model.saved_log_probs) - 1
     count_reset = len(model.reset_locations) - 1
+    index = 0
     for r in model.rewards[::-1]:
         if model.reset_locations[count_reset] == counter:
             R = 0
@@ -184,19 +193,21 @@ def update_policy_network(model, optimizer):
         R = r + args.gamma * R
         rewards.insert(0, R)
         counter = counter -1
+        index+=1
     rewards = torch.Tensor(rewards)
     # rewards = (rewards - rewards.mean()) / (rewards.std() + np.finfo(np.float32).eps)
+    index = 0
 
-    for log_prob, reward in zip(model.saved_log_probs, rewards):
+    for log_prob, reward in zip(model.updated_log_probs, rewards):
         policy_loss.append(-log_prob * reward)
-    optimizer.zero_grad()
+        index +=1
     policy_loss = torch.cat(policy_loss).sum()
     policy_loss.backward()
     optimizer.step()
     del model.rewards[:]
     del model.reset_locations[:]
-    del model.saved_log_probs[:]
     del model.updated_log_probs[:]
+    optimizer.zero_grad()
     print("Current Reward: ", rewards.sum())
     return rewards.sum()
 
@@ -212,7 +223,6 @@ def main():
     global ca_optimizer
     global dd_optimizer
     global pn_optimizer
-
     num_updates = 1
 
     '''The following Collision Anticipation Network is a
@@ -221,12 +231,12 @@ def main():
     for param in ca_model.parameters():
         param.requires_grad=False
 
-    print("####################################################################################################################\n")
     for index in range(args.training_iterations):
+        print("####################################################################################################################\n")
 
         data = execute_exp(ca_model, pn_model, 0, 1, args.policy_inp_type) #needs to return batch, necesary_arguments,
-        pn_model.saved_log_probs = pn_model.saved_log_probs[:-1]
-        pn_model.saved_log_probs = pn_model.saved_log_probs[:-1]
+
+        pn_model.updated_log_probs = pn_model.updated_log_probs[:-1]
         determine_reward(dd_model, pn_model, data[0][1], args.num_forward_passes)
         dd_optimizer.zero_grad()
         ca_optimizer.zero_grad()
@@ -244,7 +254,7 @@ def main():
                 num_updates+=1
 
             pn_optimizer.zero_grad()
-            print("\n####################################################################################################################\n")
+
 
         if (index + 1) % 50 == 0:
             pn_optimizer.zero_grad()
