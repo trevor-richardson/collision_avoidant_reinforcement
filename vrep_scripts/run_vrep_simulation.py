@@ -128,16 +128,14 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type):
                 ret_code, euler_angles = vrep.simxGetObjectOrientation(clientID, base_handle, -1, vrep.simx_opmode_buffer)
                 collector.append([pos[0], pos[1], pos[2], velo[0], velo[1], velo[2], euler_angles[0], euler_angles[1], euler_angles[2], action])
 
-                if (count) % 50 == 0:
-                    #Prepare input for AnticipationNet and execute inference --
-                    torch_vid = torch.from_numpy(np.transpose(np.expand_dims((list_of_images[-1]).astype('float'),axis=0), (0, 3, 1, 2)))
-                    torch_st = torch.from_numpy(np.asarray(collector[-1]).astype('float'))
-                    vid_to_ca = Variable(torch_vid.float().cuda())
-                    st_to_ca = Variable(torch_st.float().cuda())
+                torch_vid = torch.from_numpy(np.transpose(np.expand_dims((list_of_images[-1]).astype('float'),axis=0), (0, 3, 1, 2)))
+                torch_st = torch.from_numpy(np.asarray(collector[-1]).astype('float'))
+                vid_to_ca = Variable(torch_vid.float().cuda())
+                st_to_ca = Variable(torch_st.float().cuda())
+                output, vid_states, st_states = ca_model(vid_to_ca, st_to_ca, vid_states, st_states)
+                output.detach_()
 
-                    output, vid_states, st_states = ca_model(vid_to_ca, st_to_ca, vid_states, st_states)
-                    output.detach_()
-                    #take output of collision avoidant system
+                if (count) % 15 == 0:
                     if input_type == 0:
                         if count == 0:
                             a = torch.from_numpy(list_of_images[-1].flatten()).float().cuda()
@@ -151,7 +149,6 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type):
                             c =torch.from_numpy(np.asarray(collector[-1]).astype('float')).float().cuda()
                             d = torch.squeeze(output.data).float().cuda()
                             input_to_model = torch.cat([a, b, c, d])
-
                         input_to_model = Variable(input_to_model)
                         out = pn_model(input_to_model)
                     elif input_type == 1:
@@ -172,8 +169,6 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type):
                     action = (act -2)  * 15
                     return_val = vrep.simxSetJointTargetVelocity(clientID, left_handle, action, vrep.simx_opmode_oneshot)
                     return_val2 = vrep.simxSetJointTargetVelocity(clientID, right_handle, action, vrep.simx_opmode_oneshot_wait)
-                else:
-                    pn_model.saved_log_probs.append(m.log_prob(act))
 
                 count+=1
 
@@ -185,57 +180,6 @@ def end(clientID):
     error_code =vrep.simxStopSimulation(clientID,vrep.simx_opmode_oneshot_wait)
     vrep.simxFinish(clientID)
     return error_code
-
-def writeImagesStatesToFiles(pn_model, image_array, state_array, n_iter):
-    reduced_image = []
-    reduced_state = []
-
-    time_dilation = round(np.random.normal(12, 3)) # make sure this system can work independent of the time dilation or hz of images coming in
-    if time_dilation < 5:
-        time_dilation == 5
-    elif time_dilation > 20:
-        time_dilation == 20 #set limits on how dilated the video it sees can be
-    time_dilation = 10 #Leave this if you dont want to grab the right images
-
-    reduced_image.append(image_array[0])
-    reduced_state.append(state_array[0])
-    lst = []
-    pn_model.updated_log_probs.append(pn_model.saved_log_probs[0])
-
-    for enumerator in range(len(image_array)):
-        if enumerator % time_dilation == 0 and enumerator != 0:
-            noise = random.uniform(0, 1) #dont grab every video at that exact offset
-            if noise < .1:
-                reduced_state.append(state_array[enumerator - 2])
-                reduced_image.append(image_array[enumerator - 2])
-                pn_model.updated_log_probs.append(pn_model.saved_log_probs[enumerator - 2])
-            elif noise < .2:
-                reduced_image.append(image_array[enumerator - 1])
-                reduced_state.append(state_array[enumerator - 1])
-                pn_model.updated_log_probs.append(pn_model.saved_log_probs[enumerator - 1])
-            elif noise < .3:
-                if enumerator + 1 < len(image_array):
-                    reduced_state.append(state_array[enumerator + 1])
-                    reduced_image.append(image_array[enumerator + 1])
-                    pn_model.updated_log_probs.append(pn_model.saved_log_probs[enumerator + 1])
-            elif noise < .4:
-                if enumerator + 2 < len(image_array):
-                    reduced_state.append(state_array[enumerator + 2])
-                    reduced_image.append(image_array[enumerator + 2])
-                    pn_model.updated_log_probs.append(pn_model.saved_log_probs[enumerator + 2])
-            else:
-                reduced_image.append(image_array[enumerator])
-                reduced_state.append(state_array[enumerator])
-                pn_model.updated_log_probs.append(pn_model.saved_log_probs[enumerator])
-
-
-    del(pn_model.saved_log_probs[:])
-
-    video_arr = np.concatenate([arr[np.newaxis] for arr in reduced_image])
-    video = np.moveaxis(video_arr, -1, 1).astype(float)
-    state = np.asarray(reduced_state).astype(float) #this is ready to be saved!
-
-    return video, state
 
 def write_to_hit_miss_txt(n_iter, txt_file_counter):
     filename_newpos = base_dir + '/vrep_scripts/saved_vel_pos_data/current_position.txt'
@@ -322,7 +266,7 @@ def single_simulation(ca_model, pn_model, n_iter, txt_file_counter, inp_type):
     st_input_to_model = Variable(torch.from_numpy(np.zeros(10)).float().cuda())
     vid_states, st_states = create_recurrent_states(ca_model, 1)
     ca_model(vid_input_to_model, st_input_to_model, vid_states, st_states)
-    #initial inference for each model to prepare data pipeline
+
     if inp_type == 0:
         input_pn = Variable(torch.from_numpy(np.zeros(64*64*3*2+10+10)).float().cuda())
         pn_model(input_pn)
@@ -340,16 +284,16 @@ def single_simulation(ca_model, pn_model, n_iter, txt_file_counter, inp_type):
     clientID, start_error = start()
     image_array, state_array = collectImageData(ca_model, pn_model, clientID, states, inp_type) #store these images
     end_error = end(clientID)
-
+    state = np.asarray(state_array).astype(float)
     write_to_hit_miss_txt(n_iter, txt_file_counter)
-    video, state = writeImagesStatesToFiles(pn_model, image_array, state_array, n_iter)
-    return video, state
+
+    return state
 
 def execute_exp(ca_model, pn_model, iter_start, iter_end, input_type):
     txt_file_counter = 1
     lst = []
     for current_iteration in range(iter_start, iter_end):
-        video, state = single_simulation(ca_model, pn_model, current_iteration, txt_file_counter, input_type)
-        lst.append([video, state])
+        state = single_simulation(ca_model, pn_model, current_iteration, txt_file_counter, input_type)
+        lst.append(state)
         txt_file_counter+=1
     return lst

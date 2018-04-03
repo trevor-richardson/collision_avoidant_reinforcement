@@ -197,8 +197,9 @@ def update_policy_network(model, optimizer):
     rewards = torch.Tensor(rewards)
     # rewards = (rewards - rewards.mean()) / (rewards.std() + np.finfo(np.float32).eps)
     index = 0
-
-    for log_prob, reward in zip(model.updated_log_probs, rewards):
+    print("******************** super important")
+    print(len(model.saved_log_probs), len(model.rewards))
+    for log_prob, reward in zip(model.saved_log_probs, rewards):
         policy_loss.append(-log_prob * reward)
         index +=1
     policy_loss = torch.cat(policy_loss).sum()
@@ -206,7 +207,7 @@ def update_policy_network(model, optimizer):
     optimizer.step()
     del model.rewards[:]
     del model.reset_locations[:]
-    del model.updated_log_probs[:]
+    del model.saved_log_probs[:]
     optimizer.zero_grad()
     print("Current Reward: ", rewards.sum())
     return rewards.sum()
@@ -236,13 +237,11 @@ def main():
 
         data = execute_exp(ca_model, pn_model, 0, 1, args.policy_inp_type) #needs to return batch, necesary_arguments,
 
-        pn_model.updated_log_probs = pn_model.updated_log_probs[:-1]
-        determine_reward(dd_model, pn_model, data[0][1], args.num_forward_passes)
+        pn_model.reset_locations.append(len(pn_model.saved_log_probs) -1)
+
+        determine_reward(dd_model, pn_model, data[0], args.num_forward_passes)
         dd_optimizer.zero_grad()
         ca_optimizer.zero_grad()
-
-        if len(pn_model.reset_locations) > 1:
-            pn_model.reset_locations[-1] += pn_model.reset_locations[-2] + 1
 
         if (index + 1) % 10 == 0:
             reward = update_policy_network(pn_model, pn_optimizer)
@@ -255,8 +254,7 @@ def main():
 
             pn_optimizer.zero_grad()
 
-
-        if (index + 1) % 50 == 0:
+        if (index + 1) % 100 == 0:
             pn_optimizer.zero_grad()
             save_models(index + 1)
 

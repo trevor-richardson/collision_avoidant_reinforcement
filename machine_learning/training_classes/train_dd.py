@@ -50,7 +50,6 @@ def dd_train_model(model, optimizer, epoch, data, label, batch_size):
         epoch, train_loss.cpu().numpy()[0]/step_counter))
 
 
-
 ''' Validate Model '''
 def dd_validate_model(model, epoch, val_data, val_label, batch_size):
     model.eval()
@@ -78,7 +77,7 @@ def dd_validate_model(model, epoch, val_data, val_label, batch_size):
 
     return test_loss.cpu().numpy()[0]/step_counter
 
-#load 70% of the data for training save best validation error
+
 '''Test what strategy allows me to classify hits vs misses'''
 def evaluate_model(model, num_forward_passes, single_vid):
     model.train()
@@ -170,8 +169,18 @@ def determine_reward(dd_model, pn_model, data, num_forward_passes):
         else:
             rew[i] += -minimum
 
-    pn_model.reset_locations.append(len(rew) -1)
-    for element in rew:
-        pn_model.rewards.append(-element)
-    print("Max, min, sum")
-    print(max(rew), min(rew), sum(rew))
+    if int(len(pn_model.reset_locations)) > 1:
+        size_split = int(int(len(rew)) / (pn_model.reset_locations[-1] - pn_model.reset_locations[-2]))
+        num_splits = pn_model.reset_locations[-1] - pn_model.reset_locations[-2]
+    else:
+        size_split = int(int(len(rew)) / int(pn_model.reset_locations[-1] + 1))
+        num_splits = pn_model.reset_locations[0] + 1
+
+    for indx in range(num_splits):
+        if indx + 1 == num_splits:
+            pn_model.rewards.append(-max(rew[indx*size_split:]))
+        else:
+            pn_model.rewards.append(-max(rew[indx*size_split:((indx+1) * size_split)]))
+
+    print("\nMax norm of simulation: ", max(rew))
+    print("")

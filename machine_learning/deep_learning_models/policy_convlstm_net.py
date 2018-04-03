@@ -39,7 +39,6 @@ class ConvLSTMPolicyNet(nn.Module):
         self.fcn2 = nn.Linear(hidden_out , output_shp)
 
         self.saved_log_probs = []
-        self.updated_log_probs = []
         self.rewards = []
         self.reset_locations = []
 
