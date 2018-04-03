@@ -1,4 +1,5 @@
-'''Train Reinforcement Learning Policy Network that Learns to Avoid External Pertubation "Pain"'''
+'''Train Reinforcement Learning Policy Network
+that Learns to Avoid External Pertubation "Pain" '''
 import time
 import numpy as np
 import random
@@ -29,24 +30,11 @@ from deep_dynamics import Deep_Dynamics
 from policy_network import Policy_Network
 from collision_avoidance import AnticipationNet
 from policy_convlstm_net import ConvLSTMPolicyNet
-
 from run_vrep_simulation import execute_exp
 from train_dd import *
 
-'''
-I need some way to save the models together -- every 100 steps I want to retrain Anticipation model and deep dynamics
-I need to be able to deal with a batch of data - x
-I need to be able to decide when I've converged on training dd and Collision Anticipation
-Update collision ancitipation model
-----------------------
-Save old demos and their results --
-Update new deep dynamics model --
-Update collision prediction system --
-Run new experiments
-Read and implement ddpg
-'''
+''' Global Variables of Interest For Configurability '''
 
-''' Global Variables of Interest '''
 def str2bool(v):
     if v.lower() in ('yes', 'true', 't', 'y', '1'):
         return True
