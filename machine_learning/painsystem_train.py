@@ -22,8 +22,7 @@ config.read('../config.ini')
 
 base_dir = config['DEFAULT']['BASE_DIR']
 sys.path.append(base_dir + '/machine_learning/deep_learning_models/')
-sys.path.append(base_dir + '/machine_learning/data_loaders/')
-sys.path.append(base_dir + '/machine_learning/training_classes/')
+sys.path.append(base_dir + '/machine_learning/semisup_collision_calc/')
 sys.path.append(base_dir + '/vrep_scripts/')
 
 from deep_dynamics import Deep_Dynamics
@@ -31,10 +30,8 @@ from policy_network import Policy_Network
 from collision_avoidance import AnticipationNet
 from policy_convlstm_net import ConvLSTMPolicyNet
 
-from dd_data_loader import DeepDynamicsDataLoader
 from run_vrep_simulation import execute_exp
 from train_dd import *
-from train_anticipation import *
 
 '''
 I need some way to save the models together -- every 100 steps I want to retrain Anticipation model and deep dynamics
@@ -185,7 +182,7 @@ def update_policy_network(model, optimizer):
     count = 0
     counter = len(model.saved_log_probs) - 1
     count_reset = len(model.reset_locations) - 1
-    index = 0
+
     for r in model.rewards[::-1]:
         if model.reset_locations[count_reset] == counter:
             R = 0
@@ -193,15 +190,10 @@ def update_policy_network(model, optimizer):
         R = r + args.gamma * R
         rewards.insert(0, R)
         counter = counter -1
-        index+=1
     rewards = torch.Tensor(rewards)
-    # rewards = (rewards - rewards.mean()) / (rewards.std() + np.finfo(np.float32).eps)
-    index = 0
-    print("******************** super important")
-    print(len(model.saved_log_probs), len(model.rewards))
+
     for log_prob, reward in zip(model.saved_log_probs, rewards):
         policy_loss.append(-log_prob * reward)
-        index +=1
     policy_loss = torch.cat(policy_loss).sum()
     policy_loss.backward()
     optimizer.step()
@@ -212,10 +204,9 @@ def update_policy_network(model, optimizer):
     print("Current Reward: ", rewards.sum())
     return rewards.sum()
 
-# load_models(950)
+
 load_ca_model()
 load_dd_model()
-
 
 def main():
     global dd_model
@@ -224,16 +215,17 @@ def main():
     global ca_optimizer
     global dd_optimizer
     global pn_optimizer
-    num_updates = 1
+    num_updates = 0
 
     '''The following Collision Anticipation Network is a
         mentor for the Policy Network. It is pretrained, and no grads required'''
+
     ca_optimizer.zero_grad()
     for param in ca_model.parameters():
         param.requires_grad=False
 
+    print("################################################### ", num_updates, " ####################################################\n")
     for index in range(args.training_iterations):
-        print("####################################################################################################################\n")
 
         data = execute_exp(ca_model, pn_model, 0, 1, args.policy_inp_type) #needs to return batch, necesary_arguments,
 
@@ -246,18 +238,18 @@ def main():
         if (index + 1) % 10 == 0:
             reward = update_policy_network(pn_model, pn_optimizer)
             with open("results.txt", "a") as myfile:
+                num_updates+=1
                 myfile.write(str(num_updates))
                 myfile.write(",")
                 myfile.write(str(reward))
                 myfile.write("\n")
-                num_updates+=1
 
             pn_optimizer.zero_grad()
-
+            print("################################################### ", num_updates, " ####################################################\n")
         if (index + 1) % 100 == 0:
             pn_optimizer.zero_grad()
             save_models(index + 1)
-
+            print("----------------------------Model Saved-------------------------------------")
 
 if __name__ == '__main__':
     main()
