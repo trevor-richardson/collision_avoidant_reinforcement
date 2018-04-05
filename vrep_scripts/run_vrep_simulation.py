@@ -164,11 +164,11 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type):
                         sys.exit()
 
                     m = Categorical(out)
-                    act = m.sample()
-                    pn_model.saved_log_probs.append(m.log_prob(act))
-                    action = (act -2)  * 15
-                    return_val = vrep.simxSetJointTargetVelocity(clientID, left_handle, action, vrep.simx_opmode_oneshot)
-                    return_val2 = vrep.simxSetJointTargetVelocity(clientID, right_handle, action, vrep.simx_opmode_oneshot_wait)
+                    action = m.sample()
+                    pn_model.saved_log_probs.append(m.log_prob(action))
+                    velo = (action -2)  * 15
+                    return_val = vrep.simxSetJointTargetVelocity(clientID, left_handle, velo, vrep.simx_opmode_oneshot)
+                    return_val2 = vrep.simxSetJointTargetVelocity(clientID, right_handle, velo, vrep.simx_opmode_oneshot_wait)
 
                 count+=1
 

@@ -92,7 +92,6 @@ parser.add_argument('--update_size', type=int, default=100, metavar='N',
                     help='Number of trials a specific policy is run on before we train our models (default 100)')
 args = parser.parse_args()
 
-
 rgb_shape = (3, 64, 64)
 dd_inp_shape = (10)
 dd_output_shape = (9)
@@ -115,7 +114,6 @@ else:
     print("Enter a correct input type")
     sys.exit()
 
-
 ca_model = AnticipationNet(rgb_shape, dd_inp_shape, h_0, h_1, h_2, h_out, (args.no_filters_0,
     args.no_filters_1, args.no_filters_2), (args.kernel_0, args.kernel_0), args.strides, args.pred_window,
     padding=0, dropout_rte=args.drop_rte)
@@ -130,7 +128,7 @@ if torch.cuda.is_available():
 
 ca_optimizer = torch.optim.Adam(ca_model.parameters(), lr=args.lr)
 dd_optimizer = torch.optim.Adam(dd_model.parameters(), lr=args.lr)
-pn_optimizer = torch.optim.Adam(pn_model.parameters(), lr=args.lr)
+pn_optimizer = torch.optim.Adam(pn_model.parameters(), lr=.001)
 
 def save_models(iteration):
     torch.save(pn_model.state_dict(), base_dir + '/machine_learning/saved_models/pn' + str(iteration) + '.pth')
@@ -142,7 +140,7 @@ def load_models(iteration):
     try:
         dd_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/dd_model/0.11827140841.pth"))
         ca_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/ca_model/780.5778702075141.pth"))
-        pn_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/ca" + str(iteration) + ".pth"))
+        pn_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/pn" + str(iteration) + ".pth"))
     except ValueError:
         print("Not a valid model to load")
         sys.exit()
@@ -179,10 +177,10 @@ def update_policy_network(model, optimizer):
         rewards.insert(0, R)
         counter = counter -1
     rewards = torch.Tensor(rewards)
-
+    # rewards = (rewards - rewards.mean()) / (rewards.std() + np.finfo(np.float32).eps)
     for log_prob, reward in zip(model.saved_log_probs, rewards):
         policy_loss.append(-log_prob * reward)
-    policy_loss = torch.cat(policy_loss).sum()
+    policy_loss = torch.cat(policy_loss).sum() / len(rewards)  #normalize or scale gradient by total steps
     policy_loss.backward()
     optimizer.step()
     del model.rewards[:]
@@ -192,9 +190,9 @@ def update_policy_network(model, optimizer):
     print("Current Reward: ", rewards.sum())
     return rewards.sum()
 
-
 load_ca_model()
 load_dd_model()
+# load_models(4300)
 
 def main():
     global dd_model
@@ -216,14 +214,13 @@ def main():
     for index in range(args.training_iterations):
 
         data = execute_exp(ca_model, pn_model, 0, 1, args.policy_inp_type) #needs to return batch, necesary_arguments,
-
         pn_model.reset_locations.append(len(pn_model.saved_log_probs) -1)
 
         determine_reward(dd_model, pn_model, data[0], args.num_forward_passes)
         dd_optimizer.zero_grad()
         ca_optimizer.zero_grad()
 
-        if (index + 1) % 10 == 0:
+        if (index + 1) % 5 == 0:
             reward = update_policy_network(pn_model, pn_optimizer)
             with open("results.txt", "a") as myfile:
                 num_updates+=1

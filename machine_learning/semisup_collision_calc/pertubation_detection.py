@@ -88,6 +88,8 @@ def determine_reward(dd_model, pn_model, data, num_forward_passes):
             rew[i] = 0
         else:
             rew[i] += -minimum
+            if rew[i] < 5:
+                rew[i] = 0
 
     if int(len(pn_model.reset_locations)) > 1:
         size_split = int(int(len(rew)) / (pn_model.reset_locations[-1] - pn_model.reset_locations[-2]))

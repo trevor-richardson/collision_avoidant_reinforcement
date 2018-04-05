@@ -22,18 +22,15 @@ config.read('../config.ini')
 
 base_dir = config['DEFAULT']['BASE_DIR']
 sys.path.append(base_dir + '/machine_learning/deep_learning_models/')
-sys.path.append(base_dir + '/machine_learning/data_loaders/')
-sys.path.append(base_dir + '/machine_learning/training_classes/')
+sys.path.append(base_dir + '/machine_learning/semisup_collision_calc/')
 sys.path.append(base_dir + '/vrep_scripts/')
 
 from deep_dynamics import Deep_Dynamics
 from policy_network import Policy_Network
 from collision_avoidance import AnticipationNet
-from ca_data_loader import VideoDataGenerator
-from dd_data_loader import DeepDynamicsDataLoader
+from policy_convlstm_net import ConvLSTMPolicyNet
 from demo_vrep_simulation import execute_exp
-from train_dd import *
-from train_anticipation import *
+from pertubation_detection import *
 
 '''
 I need some way to save the models together -- every 100 steps I want to retrain Anticipation model and deep dynamics
@@ -140,12 +137,12 @@ def load_models(iteration):
     global ca_model
     try:
         ca_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/ca_model/780.5778702075141.pth"))
-        pn_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/pn_model/pn" + str(iteration) + ".pth"))
+        pn_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/pn" + str(iteration) + ".pth"))
     except ValueError:
         print("Not a valid model to load")
         sys.exit()
 
-load_models(9950)
+load_models(4300)
 
 def main():
     global pn_model
@@ -155,12 +152,10 @@ def main():
 
     for index in range(args.training_iterations):
         print("####################################################################################################################\n")
-
         execute_exp(ca_model, pn_model, 0, 1, args.policy_inp_type)
         ca_optimizer.zero_grad()
         pn_optimizer.zero_grad()
         del(pn_model.saved_log_probs[:])
-        del(pn_model.updated_log_probs[:])
         del(pn_model.rewards[:])
         del(pn_model.reset_locations[:])
 

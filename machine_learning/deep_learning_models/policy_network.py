@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-'''Simple Recurrent Policy Network'''
+'''Simple Policy Network'''
 class Policy_Network(nn.Module):
     def __init__(self, input_shp, num_neurons_0, num_neurons_1, num_neurons_2, num_neurons_3, output_shp):
         super(Policy_Network, self).__init__()

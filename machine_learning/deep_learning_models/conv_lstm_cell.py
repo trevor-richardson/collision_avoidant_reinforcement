@@ -49,7 +49,6 @@ class StatefulConv2dLSTMCell(nn.Module):
         self.inp_shape = input_shape
 
         #for now no padding need to update padding
-
         self.conv2d_x_f = nn.Conv2d(input_shape[0], no_filters, kernel_shape, stride=strides, padding=pad)
         self.conv2d_x_i = nn.Conv2d(input_shape[0], no_filters, kernel_shape, stride=strides, padding=pad)
         self.conv2d_x_o = nn.Conv2d(input_shape[0], no_filters, kernel_shape, stride=strides, padding=pad)

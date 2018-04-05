@@ -121,16 +121,14 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type):
                 ret_code, euler_angles = vrep.simxGetObjectOrientation(clientID, base_handle, -1, vrep.simx_opmode_buffer)
                 collector.append([pos[0], pos[1], pos[2], velo[0], velo[1], velo[2], euler_angles[0], euler_angles[1], euler_angles[2], action])
 
-                if (count) % 50 == 0:
-                    #Prepare input for AnticipationNet and execute inference --
-                    torch_vid = torch.from_numpy(np.transpose(np.expand_dims((list_of_images[-1]).astype('float'),axis=0), (0, 3, 1, 2)))
-                    torch_st = torch.from_numpy(np.asarray(collector[-1]).astype('float'))
-                    vid_to_ca = Variable(torch_vid.float().cuda(), volatile=True)
-                    st_to_ca = Variable(torch_st.float().cuda(), volatile=True)
+                torch_vid = torch.from_numpy(np.transpose(np.expand_dims((list_of_images[-1]).astype('float'),axis=0), (0, 3, 1, 2)))
+                torch_st = torch.from_numpy(np.asarray(collector[-1]).astype('float'))
+                vid_to_ca = Variable(torch_vid.float().cuda())
+                st_to_ca = Variable(torch_st.float().cuda())
+                output, vid_states, st_states = ca_model(vid_to_ca, st_to_ca, vid_states, st_states)
+                output.detach_()
 
-                    output, vid_states, st_states = ca_model(vid_to_ca, st_to_ca, vid_states, st_states)
-
-                    #take output of collision avoidant system
+                if (count) % 15 == 0:
                     if input_type == 0:
                         if count == 0:
                             a = torch.from_numpy(list_of_images[-1].flatten()).float().cuda()
@@ -144,27 +142,28 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type):
                             c =torch.from_numpy(np.asarray(collector[-1]).astype('float')).float().cuda()
                             d = torch.squeeze(output.data).float().cuda()
                             input_to_model = torch.cat([a, b, c, d])
-
-                        input_to_model = Variable(input_to_model, volatile=True)
+                        input_to_model = Variable(input_to_model)
                         out = pn_model(input_to_model)
                     elif input_type == 1:
-                        print("flattening everying and having lstm policy network")
+                        pn_vid = torch.from_numpy(np.transpose(np.expand_dims((list_of_images[-1]).astype('float'),axis=0), (0, 3, 1, 2)))
+                        vid_input = Variable(pn_vid.float().cuda())
+                        c = torch.from_numpy(np.asarray(collector[-1]).astype('float')).float().cuda()
+                        d = torch.squeeze(output.data).float().cuda()
+                        st_input = Variable(torch.cat([c, d]))
+                        out, pn_vidstates, pn_ststates = pn_model(vid_input, st_input, pn_vidstates, pn_ststates)
+
                     elif input_type == 2:
-                        print("input vid and state seperate similar to AnticipationNet")
+                        print("Error 12")
+                        sys.exit()
 
                     m = Categorical(out)
-                    act = m.sample()
-                    pn_model.saved_log_probs.append(m.log_prob(act))
-                    # action = (act -2)  * 15
+                    action = m.sample()
+                    velo = (action -2)  * 15
 
-                    action = (out.data.max()[1]-2) * 15
-                    return_val = vrep.simxSetJointTargetVelocity(clientID, left_handle, action, vrep.simx_opmode_oneshot)
-                    return_val2 = vrep.simxSetJointTargetVelocity(clientID, right_handle, action, vrep.simx_opmode_oneshot_wait)
-                else:
-                    pn_model.saved_log_probs.append(m.log_prob(act))
+                    return_val = vrep.simxSetJointTargetVelocity(clientID, left_handle, velo, vrep.simx_opmode_oneshot)
+                    return_val2 = vrep.simxSetJointTargetVelocity(clientID, right_handle, velo, vrep.simx_opmode_oneshot_wait)
 
                 count+=1
-
     else:
         sys.exit()
 
