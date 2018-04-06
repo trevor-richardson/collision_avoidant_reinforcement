@@ -30,6 +30,7 @@ from deep_dynamics import Deep_Dynamics
 from policy_network import Policy_Network
 from collision_avoidance import AnticipationNet
 from policy_convlstm_net import ConvLSTMPolicyNet
+from policy_conv_net import ConvPolicy_Network
 from run_vrep_simulation import execute_exp
 from pertubation_detection import *
 
@@ -102,6 +103,23 @@ h_2 = 15
 h_out = 50
 pn_output = 5
 
+'''
+
+class ConvPolicy_Network(nn.Module):
+    def __init__(self, input_shp_st,
+                    inp_img_shp,
+                    filter_0,
+                    filter_1,
+                    filter_2,
+                    filter_size,
+                    num_neurons_0,
+                    num_neurons_1,
+                    num_neurons_2,
+                    output_shp):
+
+'''
+
+
 if args.policy_inp_type == 0:
     pn_inp = 3 * 64 * 64 * 2 + 10 + 10
     pn_model = Policy_Network(pn_inp, args.hidden_0, args.hidden_1, args.hidden_2, args.hidden_3, pn_output)
@@ -110,6 +128,10 @@ elif args.policy_inp_type == 1:
     pn_model = ConvLSTMPolicyNet(rgb_shape, st_shp, h_0, h_1, h_2, h_out, (args.no_filters_0,
         args.no_filters_1, args.no_filters_2), (args.kernel_0, args.kernel_0), args.strides, pn_output,
         padding=0)
+elif args.policy_inp_type == 2:
+    st_shp = (dd_inp_shape+args.pred_window)
+    pn_model = ConvPolicy_Network(st_shp, (6, 64, 64), args.no_filters_0, args.no_filters_1,
+        args.no_filters_2, 5, args.hidden_0, args.hidden_1, args.hidden_2, pn_output)
 else:
     print("Enter a correct input type")
     sys.exit()
@@ -187,8 +209,8 @@ def update_policy_network(model, optimizer):
     del model.reset_locations[:]
     del model.saved_log_probs[:]
     optimizer.zero_grad()
-    print("Current Reward: ", rewards.sum())
-    return rewards.sum()
+    print("Current Reward: ", rewards.sum() / len(rewards))
+    return rewards.sum() / len(rewards)
 
 load_ca_model()
 load_dd_model()
@@ -220,7 +242,7 @@ def main():
         dd_optimizer.zero_grad()
         ca_optimizer.zero_grad()
 
-        if (index + 1) % 5 == 0:
+        if (index + 1) % 10 == 0:
             reward = update_policy_network(pn_model, pn_optimizer)
             with open("results.txt", "a") as myfile:
                 num_updates+=1

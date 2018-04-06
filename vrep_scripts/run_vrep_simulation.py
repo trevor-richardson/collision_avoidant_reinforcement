@@ -88,7 +88,7 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type):
     pn_model.train()
 
     list_of_images = []
-    if input_type == 0:
+    if input_type == 0 or input_type ==2:
         vid_states = states[0]
         st_states = states[1]
 
@@ -160,6 +160,25 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type):
                         out, pn_vidstates, pn_ststates = pn_model(vid_input, st_input, pn_vidstates, pn_ststates)
 
                     elif input_type == 2:
+                        #stack two images together and I need to verify the images being stacked are reasonable
+                        if count == 0:
+                            stacked_img = np.concatenate(
+                                (np.transpose(np.expand_dims((list_of_images[-1]).astype('float'),axis=0), (0, 3, 1, 2)),
+                                np.transpose(np.expand_dims((list_of_images[-1]).astype('float'),axis=0), (0, 3, 1, 2))), axis=1)
+                            vid_input = Variable(torch.from_numpy(stacked_img).float().cuda())
+                            c = torch.from_numpy(np.asarray(collector[-1]).astype('float')).float().cuda()
+                            d = torch.squeeze(output.data).float().cuda()
+                            st_input = Variable(torch.cat([c, d]))
+                        else:
+                            stacked_img = np.concatenate(
+                                (np.transpose(np.expand_dims((list_of_images[-1]).astype('float'),axis=0), (0, 3, 1, 2)),
+                                np.transpose(np.expand_dims((list_of_images[-10]).astype('float'),axis=0), (0, 3, 1, 2))), axis=1)
+                            vid_input = Variable(torch.from_numpy(stacked_img).float().cuda())
+                            c = torch.from_numpy(np.asarray(collector[-1]).astype('float')).float().cuda()
+                            d = torch.squeeze(output.data).float().cuda()
+                            st_input = Variable(torch.cat([c, d]))
+                        out = pn_model(st_input, vid_input)
+                    else:
                         print("Error 12")
                         sys.exit()
 
@@ -277,6 +296,11 @@ def single_simulation(ca_model, pn_model, n_iter, txt_file_counter, inp_type):
         pn_vid_states, pn_st_states = create_recurrent_states(pn_model, 1)
         pn_model(vid_input_to_pn, st_input_to_pn, pn_vid_states, pn_st_states)
         states = [pn_vid_states, pn_st_states, vid_states, st_states]
+    elif inp_type == 2:
+        vid_input_to_pn = Variable(torch.from_numpy(np.zeros((1, 6, 64, 64))).float().cuda())
+        st_input_to_pn = Variable(torch.from_numpy(np.zeros(20)).float().cuda())
+        pn_model(st_input_to_pn, vid_input_to_pn)
+        states = [vid_states, st_states]
     else:
         print("need to implement new input type")
         sys.exit()
