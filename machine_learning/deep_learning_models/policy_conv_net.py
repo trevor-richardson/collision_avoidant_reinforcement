@@ -51,6 +51,6 @@ class ConvPolicy_Network(nn.Module):
 
 
         flat = torch.cat((himg_2.view(himg_2.size(0), -1), torch.unsqueeze(hst_2, dim=0)), dim=1)
-        y = F.softmax(self.output(flat), dim=0)
+        y = F.softmax(self.output(flat), dim=1)
 
         return y

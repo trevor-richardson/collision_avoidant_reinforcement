@@ -89,8 +89,15 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type):
     pn_model.eval()
 
     list_of_images = []
-    vid_states = states[0]
-    st_states = states[1]
+    if input_type == 0 or input_type ==2:
+        vid_states = states[0]
+        st_states = states[1]
+
+    elif input_type == 1:
+        vid_states = states[2]
+        st_states = states[3]
+        pn_vidstates = states[0]
+        pn_ststates = states[1]
     collector = []
     if clientID!=-1:
         res,v0=vrep.simxGetObjectHandle(clientID,'Vision_sensor',vrep.simx_opmode_oneshot_wait)
@@ -153,9 +160,29 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type):
                         out, pn_vidstates, pn_ststates = pn_model(vid_input, st_input, pn_vidstates, pn_ststates)
 
                     elif input_type == 2:
+                        #stack two images together and I need to verify the images being stacked are reasonable
+                        if count == 0:
+                            stacked_img = np.concatenate(
+                                (np.transpose(np.expand_dims((list_of_images[-1]).astype('float'),axis=0), (0, 3, 1, 2)),
+                                np.transpose(np.expand_dims((list_of_images[-1]).astype('float'),axis=0), (0, 3, 1, 2))), axis=1)
+                            vid_input = Variable(torch.from_numpy(stacked_img).float().cuda())
+                            c = torch.from_numpy(np.asarray(collector[-1]).astype('float')).float().cuda()
+                            d = torch.squeeze(output.data).float().cuda()
+                            st_input = Variable(torch.cat([c, d]))
+                        else:
+                            stacked_img = np.concatenate(
+                                (np.transpose(np.expand_dims((list_of_images[-1]).astype('float'),axis=0), (0, 3, 1, 2)),
+                                np.transpose(np.expand_dims((list_of_images[-10]).astype('float'),axis=0), (0, 3, 1, 2))), axis=1)
+                            vid_input = Variable(torch.from_numpy(stacked_img).float().cuda())
+                            c = torch.from_numpy(np.asarray(collector[-1]).astype('float')).float().cuda()
+                            d = torch.squeeze(output.data).float().cuda()
+                            st_input = Variable(torch.cat([c, d]))
+                        out = pn_model(st_input, vid_input)
+                    else:
                         print("Error 12")
                         sys.exit()
 
+                    print(out)
                     m = Categorical(out)
                     action = m.sample()
                     velo = (action -2)  * 15
@@ -209,19 +236,29 @@ def create_recurrent_states(model, batch):
 def single_simulation(ca_model, pn_model, n_iter, txt_file_counter, inp_type):
 
     #initial inference for each model to prepare data pipeline
-    if inp_type == 0:
-        input_pn = Variable(torch.from_numpy(np.zeros(64*64*3*2+10+10)).float().cuda(), volatile=True)
-    elif inp_type == 1:
-        print("need to implement new input type")
-    else:
-        print("need to implement new input type")
-
-    pn_model(input_pn)
-    vid_input_to_model = Variable(torch.from_numpy(np.zeros((1, 3, 64, 64))).float().cuda(), volatile=True)
-    st_input_to_model = Variable(torch.from_numpy(np.zeros(10)).float().cuda(), volatile=True)
+    vid_input_to_model = Variable(torch.from_numpy(np.zeros((1, 3, 64, 64))).float().cuda())
+    st_input_to_model = Variable(torch.from_numpy(np.zeros(10)).float().cuda())
     vid_states, st_states = create_recurrent_states(ca_model, 1)
     ca_model(vid_input_to_model, st_input_to_model, vid_states, st_states)
-    states = [vid_states, st_states]
+
+    if inp_type == 0:
+        input_pn = Variable(torch.from_numpy(np.zeros(64*64*3*2+10+10)).float().cuda())
+        pn_model(input_pn)
+        states = [vid_states, st_states]
+    elif inp_type == 1:
+        vid_input_to_pn = Variable(torch.from_numpy(np.zeros((1, 3, 64, 64))).float().cuda())
+        st_input_to_pn = Variable(torch.from_numpy(np.zeros(20)).float().cuda())
+        pn_vid_states, pn_st_states = create_recurrent_states(pn_model, 1)
+        pn_model(vid_input_to_pn, st_input_to_pn, pn_vid_states, pn_st_states)
+        states = [pn_vid_states, pn_st_states, vid_states, st_states]
+    elif inp_type == 2:
+        vid_input_to_pn = Variable(torch.from_numpy(np.zeros((1, 6, 64, 64))).float().cuda())
+        st_input_to_pn = Variable(torch.from_numpy(np.zeros(20)).float().cuda())
+        pn_model(st_input_to_pn, vid_input_to_pn)
+        states = [vid_states, st_states]
+    else:
+        print("need to implement new input type")
+        sys.exit()
 
     clientID, start_error = start()
     collectImageData(ca_model, pn_model, clientID, states, inp_type) #store these images

@@ -29,6 +29,7 @@ from deep_dynamics import Deep_Dynamics
 from policy_network import Policy_Network
 from collision_avoidance import AnticipationNet
 from policy_convlstm_net import ConvLSTMPolicyNet
+from policy_conv_net import ConvPolicy_Network
 from demo_vrep_simulation import execute_exp
 from pertubation_detection import *
 
@@ -113,7 +114,23 @@ ca_output_shape = 10
 pn_output = 5
 pn_inp = 3 * 64 * 64 * 2 + 10 + 10
 
-pn_model = Policy_Network(pn_inp, args.hidden_0, args.hidden_1, args.hidden_2, args.hidden_3, pn_output)
+if args.policy_inp_type == 0:
+    pn_inp = 3 * 64 * 64 * 2 + 10 + 10
+    pn_model = Policy_Network(pn_inp, args.hidden_0, args.hidden_1, args.hidden_2, args.hidden_3, pn_output)
+elif args.policy_inp_type == 1:
+    st_shp = (dd_inp_shape+args.pred_window)
+    pn_model = ConvLSTMPolicyNet(rgb_shape, st_shp, h_0, h_1, h_2, h_out, (args.no_filters_0,
+        args.no_filters_1, args.no_filters_2), (args.kernel_0, args.kernel_0), args.strides, pn_output,
+        padding=0)
+elif args.policy_inp_type == 2:
+    st_shp = (dd_inp_shape+args.pred_window)
+    pn_model = ConvPolicy_Network(st_shp, (6, 64, 64), args.no_filters_0, args.no_filters_1,
+        args.no_filters_2, 5, args.hidden_0, args.hidden_1, args.hidden_2, pn_output)
+else:
+    print("Enter a correct input type")
+    sys.exit()
+
+
 
 h_0 = 15
 h_1 = 15
@@ -142,7 +159,7 @@ def load_models(iteration):
         print("Not a valid model to load")
         sys.exit()
 
-load_models(4300)
+load_models(6000)
 
 def main():
     global pn_model
