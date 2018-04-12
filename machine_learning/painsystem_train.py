@@ -49,7 +49,7 @@ parser = argparse.ArgumentParser(description='Reinforcement Learning Guided by D
 #training and testing args
 parser.add_argument('--pred_window', type=int, default=10, metavar='N',
                     help='How far in the future collision anticipation can guess')
-parser.add_argument('--policy_inp_type', type=int, default=0, metavar='N',
+parser.add_argument('--policy_inp_type', type=int, default=2, metavar='N',
                     help='Type of input for policy net')
 parser.add_argument('--training_iterations', type=int, default=30000, metavar='N',
                     help='Number of times I want to train a reinforcement learning model')
@@ -103,22 +103,6 @@ h_2 = 15
 h_out = 50
 pn_output = 5
 
-'''
-
-class ConvPolicy_Network(nn.Module):
-    def __init__(self, input_shp_st,
-                    inp_img_shp,
-                    filter_0,
-                    filter_1,
-                    filter_2,
-                    filter_size,
-                    num_neurons_0,
-                    num_neurons_1,
-                    num_neurons_2,
-                    output_shp):
-
-'''
-
 
 if args.policy_inp_type == 0:
     pn_inp = 3 * 64 * 64 * 2 + 10 + 10
@@ -129,6 +113,7 @@ elif args.policy_inp_type == 1:
         args.no_filters_1, args.no_filters_2), (args.kernel_0, args.kernel_0), args.strides, pn_output,
         padding=0)
 elif args.policy_inp_type == 2:
+    print("Initializing conv policy")
     st_shp = (dd_inp_shape+args.pred_window)
     pn_model = ConvPolicy_Network(st_shp, (6, 64, 64), args.no_filters_0, args.no_filters_1,
         args.no_filters_2, 5, args.hidden_0, args.hidden_1, args.hidden_2, pn_output)
@@ -150,7 +135,7 @@ if torch.cuda.is_available():
 
 ca_optimizer = torch.optim.Adam(ca_model.parameters(), lr=args.lr)
 dd_optimizer = torch.optim.Adam(dd_model.parameters(), lr=args.lr)
-pn_optimizer = torch.optim.Adam(pn_model.parameters(), lr=.001)
+pn_optimizer = torch.optim.Adam(pn_model.parameters(), lr=args.lr)
 
 def save_models(iteration):
     torch.save(pn_model.state_dict(), base_dir + '/machine_learning/saved_models/pn' + str(iteration) + '.pth')
@@ -199,9 +184,11 @@ def update_policy_network(model, optimizer):
         rewards.insert(0, R)
         counter = counter -1
     rewards = torch.Tensor(rewards)
-    # rewards = (rewards - rewards.mean()) / (rewards.std() + np.finfo(np.float32).eps)
+    total_rew = rewards.sum()
+
     for log_prob, reward in zip(model.saved_log_probs, rewards):
-        policy_loss.append(-log_prob * reward)
+        policy_loss.append(log_prob * reward)
+    print("policy loss", sum(policy_loss) / len(rewards))
     policy_loss = torch.cat(policy_loss).sum() / len(rewards)  #normalize or scale gradient by total steps
     policy_loss.backward()
     optimizer.step()
@@ -209,12 +196,13 @@ def update_policy_network(model, optimizer):
     del model.reset_locations[:]
     del model.saved_log_probs[:]
     optimizer.zero_grad()
-    print("Current Reward: ", rewards.sum() / len(rewards))
-    return rewards.sum() / len(rewards)
+    print("Current Reward: ", total_rew)
+    return total_rew / len(rewards)
+
 
 load_ca_model()
 load_dd_model()
-# load_models(4300)
+# load_models(4800)
 
 def main():
     global dd_model
@@ -255,7 +243,7 @@ def main():
             print("################################################### ", num_updates, " ####################################################\n")
         if (index + 1) % 100 == 0:
             pn_optimizer.zero_grad()
-            save_models(index + 1)
+            save_models(index + 4800 + 1)
             print("----------------------------Model Saved-------------------------------------")
 
 if __name__ == '__main__':

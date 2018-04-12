@@ -183,6 +183,8 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type):
                         sys.exit()
 
                     m = Categorical(out)
+                    # print(out)
+                    # print("\n")
                     action = m.sample()
                     pn_model.saved_log_probs.append(m.log_prob(action))
                     velo = (action -2)  * 15
