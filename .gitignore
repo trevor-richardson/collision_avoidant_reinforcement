@@ -1,4 +1,3 @@
 /data_generated
 /vrep_scripts/saved_vel_pos_data
-/machine_learning/saved_models/pn_model
-/machine_learning/saved_models/version_0
+/machine_learning/saved_models/

@@ -83,6 +83,7 @@ def determine_reward(dd_model, pn_model, data, num_forward_passes):
     pdf_values, rew = evaluate_model(dd_model, num_forward_passes, data)
     low, high = calc_confidence_interval(rew)
     minimum = min(rew)
+
     for i in range(len(rew)):
         if rew[i] < high:
             rew[i] = 0
@@ -90,6 +91,8 @@ def determine_reward(dd_model, pn_model, data, num_forward_passes):
             rew[i] += -minimum
             if rew[i] < 5:
                 rew[i] = 0
+            else:
+                rew[i] = 1
 
     if int(len(pn_model.reset_locations)) > 1:
         size_split = int(int(len(rew)) / (pn_model.reset_locations[-1] - pn_model.reset_locations[-2]))
