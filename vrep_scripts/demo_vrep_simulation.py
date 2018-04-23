@@ -182,15 +182,17 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type):
                         print("Error 12")
                         sys.exit()
 
-                    print(out)
-                    m = Categorical(out)
-                    action = m.sample()
+                    # print(out, out.max(1)[1])
+                    # m = Categorical(out)
+                    # action = m.sample()
+                    action = out.max(1)[1]
                     velo = (action -2)  * 15
 
                     return_val = vrep.simxSetJointTargetVelocity(clientID, left_handle, velo, vrep.simx_opmode_oneshot)
                     return_val2 = vrep.simxSetJointTargetVelocity(clientID, right_handle, velo, vrep.simx_opmode_oneshot_wait)
 
                 count+=1
+        return collector
     else:
         sys.exit()
 
@@ -261,8 +263,10 @@ def single_simulation(ca_model, pn_model, n_iter, txt_file_counter, inp_type):
         sys.exit()
 
     clientID, start_error = start()
-    collectImageData(ca_model, pn_model, clientID, states, inp_type) #store these images
+    state_array = collectImageData(ca_model, pn_model, clientID, states, inp_type) #store these images
     end_error = end(clientID)
+    state = np.asarray(state_array).astype(float)
+    return state
 
 
 def execute_exp(ca_model, pn_model, iter_start, iter_end, input_type):
@@ -270,4 +274,6 @@ def execute_exp(ca_model, pn_model, iter_start, iter_end, input_type):
     lst = []
 
     for current_iteration in range(iter_start, iter_end):
-        single_simulation(ca_model, pn_model, current_iteration, txt_file_counter, input_type)
+        states = single_simulation(ca_model, pn_model, current_iteration, txt_file_counter, input_type)
+        lst.append(states)
+    return lst

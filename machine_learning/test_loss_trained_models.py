@@ -55,8 +55,8 @@ parser.add_argument('--policy_inp_type', type=int, default=0, metavar='N',
                     help='Type of input for policy net')
 
 #training and testing args
-parser.add_argument('--training_iterations', type=int, default=30000, metavar='N',
-                    help='Number of times I want to train a reinforcement learning model')
+parser.add_argument('--validation_iterations', type=int, default=100, metavar='N',
+                    help='Number of times I want to validate a reinforcement learning model')
 parser.add_argument('--num_forward_passes', type=int, default=32, metavar='N',
                     help='Number of forward passes for dropout at test time for multivariate_normal pdf calc')
 parser.add_argument('--exp_iteration', type=int, default=64, metavar='N',
@@ -130,42 +130,85 @@ h_out = 50
 ca_model = AnticipationNet(rgb_shape, dd_inp_shape, h_0, h_1, h_2, h_out, (args.no_filters_0,
     args.no_filters_1, args.no_filters_2), (args.kernel_0, args.kernel_0), args.strides, args.pred_window,
     padding=0, dropout_rte=args.drop_rte)
+dd_model = Deep_Dynamics(dd_inp_shape, 60, 40, 30, 20, 20, dd_output_shape, args.drop_rte)
 
 if torch.cuda.is_available():
     print("Using GPU acceleration")
-    pn_model.cuda()
+    dd_model.cuda()
     ca_model.cuda()
+    pn_model.cuda()
 
 ca_optimizer = torch.optim.Adam(ca_model.parameters(), lr=args.lr)
 pn_optimizer = torch.optim.Adam(pn_model.parameters(), lr=args.lr)
+dd_optimizer = torch.optim.Adam(dd_model.parameters(), lr=args.lr)
+
 
 def load_models(iteration):
     global ca_model
-    global pn_model
+    global dd_model
     try:
         ca_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/ca_model/780.5778702075141.pth"))
-        pn_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/major_exp_1/pn" + str(iteration) + ".pth"))
+        dd_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/dd_model/0.11827140841.pth"))
     except ValueError:
         print("Not a valid model to load")
         sys.exit()
 
-load_models(40000)
+
+def load_pn_model(name):
+    global pn_model
+    try:
+        pn_model.load_state_dict(torch.load(name))
+    except ValueError:
+        print("Not a valid model to load")
+        sys.exit()
+
+
+load_models(20800)
 
 def main():
     global pn_model
     global pn_optimizer
     global ca_model
     global ca_optimizer
+    global dd_model
+    global dd_optimizer
+    results_lst = []
 
-    for index in range(args.training_iterations):
+    #populate list of models and order them
+    models_dir = base_dir + '/machine_learning/saved_models/major_exp_1/'
+    models_lst = [f for f in listdir(models_dir) if isfile(join(models_dir, f))]
+    for indx, element in enumerate(models_lst):
+        models_lst[indx] = models_dir + element
+
+    for model in models_lst:
+        load_pn_model(model)
+
+        start = model.find('pn') + 3
+        end = model.find('.pth', start)
+        current_model_no = int(model[start:end])
+
         print("####################################################################################################################\n")
-        execute_exp(ca_model, pn_model, 0, 1, args.policy_inp_type)
-        ca_optimizer.zero_grad()
-        pn_optimizer.zero_grad()
-        del(pn_model.saved_log_probs[:])
-        del(pn_model.rewards[:])
-        del(pn_model.reset_locations[:])
+        print(model)
+        count = 0
 
+        for index in range(args.validation_iterations):
+            states = execute_exp(ca_model, pn_model, 0, 1, args.policy_inp_type)
+            collision_detector = determine_reward_val(dd_model, pn_model, states[0], args.num_forward_passes)
+            if collision_detector > 0:
+                print("Hit")
+                count+=1
+            else:
+                print("Miss")
+            dd_optimizer.zero_grad()
+            ca_optimizer.zero_grad()
+            pn_optimizer.zero_grad()
+            del(pn_model.saved_log_probs[:])
+            del(pn_model.rewards[:])
+            del(pn_model.reset_locations[:])
+
+        print("count ", count)
+        results_lst.append([current_model_no, count])
+    np.save("validation_results", np.asarray(results_lst))
 
 
 if __name__ == '__main__':

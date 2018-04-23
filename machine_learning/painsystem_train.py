@@ -197,9 +197,9 @@ def update_policy_network(model, optimizer):
     optimizer.zero_grad()
     return total_rew / len(rewards)
 
-load_ca_model()
-load_dd_model()
-# load_models(4800)
+# load_ca_model()
+# load_dd_model()
+load_models(19200)
 
 def main():
     global dd_model
@@ -208,7 +208,7 @@ def main():
     global ca_optimizer
     global dd_optimizer
     global pn_optimizer
-    num_updates = 0
+    num_updates = 615
 
     '''The following Collision Anticipation Network is a
         mentor for the Policy Network. It is pretrained, and no grads required'''
@@ -227,7 +227,7 @@ def main():
         dd_optimizer.zero_grad()
         ca_optimizer.zero_grad()
 
-        if (index + 1) % 64 == 0:
+        if (index + 1) % 32 == 0:
             reward = update_policy_network(pn_model, pn_optimizer)
             with open("results.txt", "a") as myfile:
                 num_updates+=1
@@ -238,9 +238,9 @@ def main():
 
             pn_optimizer.zero_grad()
             print("################################################### ", num_updates, " ####################################################\n")
-        if (index + 1) % 640 == 0:
+        if (index + 1) % 320 == 0:
             pn_optimizer.zero_grad()
-            save_models(index + 1)
+            save_models(index + 19200 + 1)
             print("----------------------------Model Saved-------------------------------------")
 
 if __name__ == '__main__':
