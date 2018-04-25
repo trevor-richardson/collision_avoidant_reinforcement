@@ -147,6 +147,6 @@ def determine_reward_no_repeat(dd_model, pn_model, data, num_forward_passes):
                 rew[i] = 1
                 pn_model.rewards.append(rew[i])
 
-
+    pn_model.rewards.append(rew[-1])
     print("\nMax norm of simulation: ", max(rew))
     print("")

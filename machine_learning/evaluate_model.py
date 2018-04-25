@@ -158,7 +158,6 @@ def main():
     global ca_optimizer
 
     for index in range(args.training_iterations):
-        print("####################################################################################################################\n")
         execute_exp(ca_model, pn_model, 0, 1, args.policy_inp_type)
         ca_optimizer.zero_grad()
         pn_optimizer.zero_grad()

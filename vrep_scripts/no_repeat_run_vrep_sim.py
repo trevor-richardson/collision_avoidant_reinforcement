@@ -14,6 +14,8 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.autograd import Variable
 from torch.distributions import Categorical
+from matplotlib import pyplot as plt
+
 config = configparser.ConfigParser()
 config.read('../config.ini')
 
@@ -159,7 +161,6 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type):
                     d = torch.squeeze(output.data).float().cuda()
                     st_input = Variable(torch.cat([c, d]))
                     out, pn_vidstates, pn_ststates = pn_model(vid_input, st_input, pn_vidstates, pn_ststates)
-
                 elif input_type == 2:
                     #stack two images together and I need to verify the images being stacked are reasonable
                     if count == 0:
@@ -192,7 +193,9 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type):
                 return_val2 = vrep.simxSetJointTargetVelocity(clientID, right_handle, velo, vrep.simx_opmode_oneshot_wait)
 
                 count+=1
-        print(inference_counter, "inference counter")
+        # print(inference_counter, "inference counter")
+        # for indx, element in enumerate(list_of_images):
+        #     view_image(element, str(indx))
         return list_of_images, collector
     else:
         sys.exit()
@@ -247,6 +250,11 @@ def write_to_hit_miss_txt(n_iter, txt_file_counter):
         print(x_list_of_positions6[txt_file_counter + 1], file=new_pos_file)
         print(y_list_of_positions6[txt_file_counter + 1], file=new_pos_file)
         print(z_permanent, file=new_pos_file)
+
+def view_image(image, name):
+    plt.imshow(image, cmap='gray')
+    plt.title(name)
+    plt.show()
 
 def create_convlstm_states(shape, batch):
     if torch.cuda.is_available():
