@@ -149,7 +149,7 @@ def load_models(iteration):
         print("Not a valid model to load")
         sys.exit()
 
-load_models(40000)
+load_models(1600)
 
 def main():
     global pn_model
