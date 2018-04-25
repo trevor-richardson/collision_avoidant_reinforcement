@@ -84,8 +84,9 @@ def start():
     return clientID, error_code
 
 def collectImageData(ca_model, pn_model, clientID, states, input_type):
+
     ca_model.eval()
-    pn_model.train()
+    pn_model.eval()
 
     list_of_images = []
     if input_type == 0 or input_type ==2:
@@ -97,7 +98,6 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type):
         st_states = states[3]
         pn_vidstates = states[0]
         pn_ststates = states[1]
-
     collector = []
     if clientID!=-1:
         res,v0=vrep.simxGetObjectHandle(clientID,'Vision_sensor',vrep.simx_opmode_oneshot_wait)
@@ -111,7 +111,6 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type):
         t_end = time.time() + 2.8
         count = 0
         action = 0
-        inference_counter = 0
 
         while (vrep.simxGetConnectionId(clientID)!=-1 and time.time() < t_end):
             res,resolution,image=vrep.simxGetVisionSensorImage(clientID,v0,0,vrep.simx_opmode_buffer)
@@ -137,7 +136,6 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type):
                 output.detach_()
 
                 if (count) % 15 == 0:
-                    inference_counter +=1
                     if input_type == 0:
                         if count == 0:
                             a = torch.from_numpy(list_of_images[-1].flatten()).float().cuda()
@@ -184,16 +182,17 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type):
                         print("Error 12")
                         sys.exit()
 
-                    m = Categorical(out)
-                    action = m.sample()
-                    pn_model.saved_log_probs.append(m.log_prob(action))
+                    # print(out, out.max(1)[1])
+                    # m = Categorical(out)
+                    # action = m.sample()
+                    action = out.max(1)[1]
                     velo = (action -2)  * 15
+
                     return_val = vrep.simxSetJointTargetVelocity(clientID, left_handle, velo, vrep.simx_opmode_oneshot)
                     return_val2 = vrep.simxSetJointTargetVelocity(clientID, right_handle, velo, vrep.simx_opmode_oneshot_wait)
 
                 count+=1
-        print(inference_counter, "inference counter")
-        return list_of_images, collector
+        return collector
     else:
         sys.exit()
 
@@ -202,68 +201,23 @@ def end(clientID):
     vrep.simxFinish(clientID)
     return error_code
 
-def write_to_hit_miss_txt(n_iter, txt_file_counter):
-    filename_newpos = base_dir + '/vrep_scripts/saved_vel_pos_data/current_position.txt'
-    filename_newpos0 = base_dir + '/vrep_scripts/saved_vel_pos_data/current_position0.txt'
-    filename_newpos1 = base_dir + '/vrep_scripts/saved_vel_pos_data/current_position1.txt'
-    filename_newpos2 = base_dir + '/vrep_scripts/saved_vel_pos_data/current_position2.txt'
-    filename_newpos3 = base_dir + '/vrep_scripts/saved_vel_pos_data/current_position3.txt'
-    filename_newpos4 = base_dir + '/vrep_scripts/saved_vel_pos_data/current_position4.txt'
-    filename_newpos5 = base_dir + '/vrep_scripts/saved_vel_pos_data/current_position5.txt'
-    filename_newpos6 = base_dir + '/vrep_scripts/saved_vel_pos_data/current_position6.txt'
-    filename_miss = base_dir + '/vrep_scripts/saved_vel_pos_data/train/miss/miss' + str(txt_file_counter)
-    filename_hit = base_dir + '/vrep_scripts/saved_vel_pos_data/train/hit/hit' + str(txt_file_counter)
-    filename_get_velocity = base_dir + '/vrep_scripts/saved_vel_pos_data/velocity.txt'
-
-    with open(filename_newpos, "w") as new_pos_file:
-        print(x_list_of_positions[txt_file_counter + 1], file=new_pos_file)
-        print(y_list_of_positions[txt_file_counter + 1], file=new_pos_file)
-        print(z_permanent, file=new_pos_file)
-    with open(filename_newpos0, "w") as new_pos_file:
-        print(x_list_of_positions0[txt_file_counter + 1], file=new_pos_file)
-        print(y_list_of_positions0[txt_file_counter + 1], file=new_pos_file)
-        print(z_permanent, file=new_pos_file)
-    with open(filename_newpos1, "w") as new_pos_file:
-        print(x_list_of_positions1[txt_file_counter + 1], file=new_pos_file)
-        print(y_list_of_positions1[txt_file_counter + 1], file=new_pos_file)
-        print(z_permanent, file=new_pos_file)
-    with open(filename_newpos2, "w") as new_pos_file:
-        print(x_list_of_positions2[txt_file_counter + 1], file=new_pos_file)
-        print(y_list_of_positions2[txt_file_counter + 1], file=new_pos_file)
-        print(z_permanent, file=new_pos_file)
-    with open(filename_newpos3, "w") as new_pos_file:
-        print(x_list_of_positions3[txt_file_counter + 1], file=new_pos_file)
-        print(y_list_of_positions3[txt_file_counter + 1], file=new_pos_file)
-        print(z_permanent, file=new_pos_file)
-    with open(filename_newpos4, "w") as new_pos_file:
-        print(x_list_of_positions4[txt_file_counter + 1], file=new_pos_file)
-        print(y_list_of_positions4[txt_file_counter + 1], file=new_pos_file)
-        print(z_permanent, file=new_pos_file)
-    with open(filename_newpos5, "w") as new_pos_file:
-        print(x_list_of_positions5[txt_file_counter + 1], file=new_pos_file)
-        print(y_list_of_positions5[txt_file_counter + 1], file=new_pos_file)
-        print(z_permanent, file=new_pos_file)
-    with open(filename_newpos6, "w") as new_pos_file:
-        print(x_list_of_positions6[txt_file_counter + 1], file=new_pos_file)
-        print(y_list_of_positions6[txt_file_counter + 1], file=new_pos_file)
-        print(z_permanent, file=new_pos_file)
 
 def create_convlstm_states(shape, batch):
     if torch.cuda.is_available():
-        c = Variable(torch.zeros(batch, shape[0], shape[1], shape[2])).float().cuda()
-        h = Variable(torch.zeros(batch, shape[0], shape[1], shape[2])).float().cuda()
+        c = Variable(torch.zeros(batch, shape[0], shape[1], shape[2]), volatile=True).float().cuda()
+        h = Variable(torch.zeros(batch, shape[0], shape[1], shape[2]), volatile=True).float().cuda()
     else:
-        c = Variable(torch.zeros(batch, shape[0], shape[1], shape[2])).float()
-        h = Variable(torch.zeros(batch, shape[0], shape[1], shape[2])).float()
+        c = Variable(torch.zeros(batch, shape[0], shape[1], shape[2]), volatile=True).float()
+        h = Variable(torch.zeros(batch, shape[0], shape[1], shape[2]), volatile=True).float()
     return (h, c)
 
 def create_lstm_states(shape, batch):
     if torch.cuda.is_available():
-        c = Variable(torch.zeros(batch, shape).float().cuda())
-        h = Variable(torch.zeros(batch, shape).float().cuda())
+        c = Variable(torch.zeros(batch, shape).float().cuda(), volatile=True)
+        h = Variable(torch.zeros(batch, shape).float().cuda(), volatile=True)
     else:
-        c = Variable(torch.zeros(batch, shape).float())
-        h = Variable(torch.zeros(batch, shape).float())
+        c = Variable(torch.zeros(batch, shape).float(), volatile=True)
+        h = Variable(torch.zeros(batch, shape).float(), volatile=True)
     return (h, c)
 
 def create_recurrent_states(model, batch):
@@ -283,6 +237,7 @@ def create_recurrent_states(model, batch):
 
 def single_simulation(ca_model, pn_model, n_iter, txt_file_counter, inp_type):
 
+    #initial inference for each model to prepare data pipeline
     vid_input_to_model = Variable(torch.from_numpy(np.zeros((1, 3, 64, 64))).float().cuda())
     st_input_to_model = Variable(torch.from_numpy(np.zeros(10)).float().cuda())
     vid_states, st_states = create_recurrent_states(ca_model, 1)
@@ -308,18 +263,17 @@ def single_simulation(ca_model, pn_model, n_iter, txt_file_counter, inp_type):
         sys.exit()
 
     clientID, start_error = start()
-    image_array, state_array = collectImageData(ca_model, pn_model, clientID, states, inp_type) #store these images
+    state_array = collectImageData(ca_model, pn_model, clientID, states, inp_type) #store these images
     end_error = end(clientID)
     state = np.asarray(state_array).astype(float)
-    write_to_hit_miss_txt(n_iter, txt_file_counter)
-
     return state
+
 
 def execute_exp(ca_model, pn_model, iter_start, iter_end, input_type):
     txt_file_counter = 1
     lst = []
+
     for current_iteration in range(iter_start, iter_end):
-        state = single_simulation(ca_model, pn_model, current_iteration, txt_file_counter, input_type)
-        lst.append(state)
-        txt_file_counter+=1
+        states = single_simulation(ca_model, pn_model, current_iteration, txt_file_counter, input_type)
+        lst.append(states)
     return lst

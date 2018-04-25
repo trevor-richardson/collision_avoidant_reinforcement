@@ -31,7 +31,7 @@ from policy_network import Policy_Network
 from collision_avoidance import AnticipationNet
 from policy_convlstm_net import ConvLSTMPolicyNet
 from policy_conv_net import ConvPolicy_Network
-from run_vrep_simulation import execute_exp
+from no_repeat_run_vrep_sim import execute_exp
 from pertubation_detection import *
 
 ''' Global Variables of Interest For Configurability '''
@@ -223,7 +223,7 @@ def main():
         data = execute_exp(ca_model, pn_model, 0, 1, args.policy_inp_type) #needs to return batch, necesary_arguments,
         pn_model.reset_locations.append(len(pn_model.saved_log_probs) -1)
 
-        determine_reward(dd_model, pn_model, data[0], args.num_forward_passes)
+        determine_reward_no_repeat(dd_model, pn_model, data[0], args.num_forward_passes)
         dd_optimizer.zero_grad()
         ca_optimizer.zero_grad()
 

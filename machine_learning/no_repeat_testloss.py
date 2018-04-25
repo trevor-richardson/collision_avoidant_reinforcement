@@ -1,5 +1,4 @@
-'''Train Reinforcement Learning Policy Network
-that Learns to Avoid External Pertubation "Pain" '''
+'''Train Reinforcement Learning Policy Network that Learns to Avoid External Pertubation "Pain"'''
 import time
 import numpy as np
 import random
@@ -31,11 +30,15 @@ from policy_network import Policy_Network
 from collision_avoidance import AnticipationNet
 from policy_convlstm_net import ConvLSTMPolicyNet
 from policy_conv_net import ConvPolicy_Network
-from run_vrep_simulation import execute_exp
+from no_repeat_demo_sim import execute_exp
 from pertubation_detection import *
 
-''' Global Variables of Interest For Configurability '''
+'''
+----------------------
+Read and implement ddpg
+'''
 
+''' Global Variables of Interest '''
 def str2bool(v):
     if v.lower() in ('yes', 'true', 't', 'y', '1'):
         return True
@@ -44,21 +47,22 @@ def str2bool(v):
     else:
         raise argparse.ArgumentTypeError('Boolean value expected.')
 
-parser = argparse.ArgumentParser(description='Reinforcement Learning Guided by Deep Dynamics and Anticipation Models in Pytorch')
 
-#training and testing args
+parser = argparse.ArgumentParser(description='Reinforcement Learning Guided by Deep Dynamics and Anticipation Models in Pytorch')
 parser.add_argument('--pred_window', type=int, default=10, metavar='N',
                     help='How far in the future collision anticipation can guess')
-parser.add_argument('--policy_inp_type', type=int, default=2, metavar='N',
+parser.add_argument('--policy_inp_type', type=int, default=0, metavar='N',
                     help='Type of input for policy net')
-parser.add_argument('--training_iterations', type=int, default=30000, metavar='N',
-                    help='Number of times I want to train a reinforcement learning model')
+
+#training and testing args
+parser.add_argument('--validation_iterations', type=int, default=100, metavar='N',
+                    help='Number of times I want to validate a reinforcement learning model')
 parser.add_argument('--num_forward_passes', type=int, default=32, metavar='N',
                     help='Number of forward passes for dropout at test time for multivariate_normal pdf calc')
 parser.add_argument('--exp_iteration', type=int, default=64, metavar='N',
                     help='Batch size default size is 64')
-parser.add_argument('--batch_size', type=int, default=10, metavar='N',
-                    help='size_of batch (default 10)')
+parser.add_argument('--batch_size', type=int, default=64, metavar='N',
+                    help='Number of hit and number of miss videos (default 64)')
 parser.add_argument('--no_filters_0', type=int, default=40, metavar='N',
                     help='Number of activation maps to in layer 0 (default 40)')
 parser.add_argument('--no_filters_1', type=int, default=30, metavar='N',
@@ -93,16 +97,14 @@ parser.add_argument('--update_size', type=int, default=100, metavar='N',
                     help='Number of trials a specific policy is run on before we train our models (default 100)')
 args = parser.parse_args()
 
+
 rgb_shape = (3, 64, 64)
 dd_inp_shape = (10)
 dd_output_shape = (9)
 ca_output_shape = 10
-h_0 = 15
-h_1 = 15
-h_2 = 15
-h_out = 50
-pn_output = 5
 
+pn_output = 5
+pn_inp = 3 * 64 * 64 * 2 + 10 + 10
 
 if args.policy_inp_type == 0:
     pn_inp = 3 * 64 * 64 * 2 + 10 + 10
@@ -113,7 +115,6 @@ elif args.policy_inp_type == 1:
         args.no_filters_1, args.no_filters_2), (args.kernel_0, args.kernel_0), args.strides, pn_output,
         padding=0)
 elif args.policy_inp_type == 2:
-    print("Initializing conv policy")
     st_shp = (dd_inp_shape+args.pred_window)
     pn_model = ConvPolicy_Network(st_shp, (6, 64, 64), args.no_filters_0, args.no_filters_1,
         args.no_filters_2, 5, args.hidden_0, args.hidden_1, args.hidden_2, pn_output)
@@ -121,127 +122,92 @@ else:
     print("Enter a correct input type")
     sys.exit()
 
+
+h_0 = 15
+h_1 = 15
+h_2 = 15
+h_out = 50
 ca_model = AnticipationNet(rgb_shape, dd_inp_shape, h_0, h_1, h_2, h_out, (args.no_filters_0,
     args.no_filters_1, args.no_filters_2), (args.kernel_0, args.kernel_0), args.strides, args.pred_window,
     padding=0, dropout_rte=args.drop_rte)
-
 dd_model = Deep_Dynamics(dd_inp_shape, 60, 40, 30, 20, 20, dd_output_shape, args.drop_rte)
 
 if torch.cuda.is_available():
     print("Using GPU acceleration")
-    pn_model.cuda()
-    ca_model.cuda()
     dd_model.cuda()
+    ca_model.cuda()
+    pn_model.cuda()
 
 ca_optimizer = torch.optim.Adam(ca_model.parameters(), lr=args.lr)
-dd_optimizer = torch.optim.Adam(dd_model.parameters(), lr=args.lr)
 pn_optimizer = torch.optim.Adam(pn_model.parameters(), lr=args.lr)
+dd_optimizer = torch.optim.Adam(dd_model.parameters(), lr=args.lr)
 
-def save_models(iteration):
-    torch.save(pn_model.state_dict(), base_dir + '/machine_learning/saved_models/pn' + str(iteration) + '.pth')
 
 def load_models(iteration):
-    global dd_model
     global ca_model
+    global dd_model
+    try:
+        ca_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/ca_model/780.5778702075141.pth"))
+        dd_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/dd_model/0.11827140841.pth"))
+    except ValueError:
+        print("Not a valid model to load")
+        sys.exit()
+
+
+def load_pn_model(name):
     global pn_model
     try:
-        dd_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/dd_model/0.11827140841.pth"))
-        ca_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/ca_model/780.5778702075141.pth"))
-        pn_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/pn" + str(iteration) + ".pth"))
+        pn_model.load_state_dict(torch.load(name))
     except ValueError:
         print("Not a valid model to load")
         sys.exit()
 
-def load_dd_model():
-    global dd_model
-    try:
-        dd_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/dd_model/0.11827140841.pth"))
-    except ValueError:
-        print("Not a valid model to load")
-        sys.exit()
-
-def load_ca_model():
-    global ca_model
-    try:
-        ca_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/ca_model/780.5778702075141.pth"))
-    except ValueError:
-        print("Not a valid model to load")
-        sys.exit()
-
-def update_policy_network(model, optimizer):
-    R = 0
-    policy_loss = []
-    rewards = []
-    count = 0
-    counter = len(model.saved_log_probs) - 1
-    count_reset = len(model.reset_locations) - 1
-
-    for r in model.rewards[::-1]:
-        if model.reset_locations[count_reset] == counter:
-            R = 0
-            count_reset = count_reset -1
-        R = r + args.gamma * R
-        rewards.insert(0, R)
-        counter = counter -1
-    rewards = torch.Tensor(rewards)
-    total_rew = rewards.sum()
-
-    for log_prob, reward in zip(model.saved_log_probs, rewards):
-        policy_loss.append(-log_prob * reward)
-    policy_loss = torch.cat(policy_loss).sum() / len(rewards)  #normalize or scale gradient by total steps
-    policy_loss.backward()
-    optimizer.step()
-    del model.rewards[:]
-    del model.reset_locations[:]
-    del model.saved_log_probs[:]
-    optimizer.zero_grad()
-    return total_rew / len(rewards)
-
-load_ca_model()
-load_dd_model()
-# load_models(19200)
 
 def main():
-    global dd_model
-    global ca_model
     global pn_model
-    global ca_optimizer
-    global dd_optimizer
     global pn_optimizer
-    num_updates = 0
+    global ca_model
+    global ca_optimizer
+    global dd_model
+    global dd_optimizer
+    results_lst = []
 
-    '''The following Collision Anticipation Network is a
-        mentor for the Policy Network. It is pretrained, and no grads required'''
+    #populate list of models and order them
+    models_dir = base_dir + '/machine_learning/saved_models/major_exp_1/'
+    models_lst = [f for f in listdir(models_dir) if isfile(join(models_dir, f))]
+    for indx, element in enumerate(models_lst):
+        models_lst[indx] = models_dir + element
 
-    ca_optimizer.zero_grad()
-    for param in ca_model.parameters():
-        param.requires_grad=False
+    for model in models_lst:
+        load_pn_model(model)
 
-    print("################################################### ", num_updates, " ####################################################\n")
-    for index in range(args.training_iterations):
+        start = model.find('pn') + 3
+        end = model.find('.pth', start)
+        current_model_no = int(model[start:end])
 
-        data = execute_exp(ca_model, pn_model, 0, 1, args.policy_inp_type) #needs to return batch, necesary_arguments,
-        pn_model.reset_locations.append(len(pn_model.saved_log_probs) -1)
+        print("####################################################################################################################\n")
+        print(model)
+        count = 0
 
-        determine_reward(dd_model, pn_model, data[0], args.num_forward_passes)
-        dd_optimizer.zero_grad()
-        ca_optimizer.zero_grad()
-
-        if (index + 1) % 32 == 0:
-            reward = update_policy_network(pn_model, pn_optimizer)
-            with open("results.txt", "a") as myfile:
-                num_updates+=1
-                myfile.write(str(num_updates))
-                myfile.write(",")
-                myfile.write(str(reward))
-                myfile.write("\n")
-
+        for index in range(args.validation_iterations):
+            states = execute_exp(ca_model, pn_model, 0, 1, args.policy_inp_type)
+            collision_detector = determine_reward_val(dd_model, pn_model, states[0], args.num_forward_passes)
+            if collision_detector > 0:
+                print("Hit")
+                count+=1
+            else:
+                print("Miss")
+            dd_optimizer.zero_grad()
+            ca_optimizer.zero_grad()
             pn_optimizer.zero_grad()
-            print("################################################### ", num_updates, " ####################################################\n")
-        if (index + 1) % 320 == 0:
-            pn_optimizer.zero_grad()
-            save_models(index + 1)
-            print("----------------------------Model Saved-------------------------------------")
+            del(pn_model.saved_log_probs[:])
+            del(pn_model.rewards[:])
+            del(pn_model.reset_locations[:])
+
+        print("count ", count)
+        results_lst.append([current_model_no, count])
+    np.save("validation_results", np.asarray(results_lst))
+
 
 if __name__ == '__main__':
     main()
