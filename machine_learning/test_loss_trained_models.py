@@ -162,6 +162,7 @@ def load_pn_model(name):
         print("Not a valid model to load")
         sys.exit()
 
+load_models(1)
 
 def main():
     global pn_model

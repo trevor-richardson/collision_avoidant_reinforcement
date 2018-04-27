@@ -175,7 +175,6 @@ def update_policy_network(model, optimizer):
     count = 0
     counter = len(model.saved_log_probs) - 1
     count_reset = len(model.reset_locations) - 1
-    print(len(model.reset_locations), len(model.saved_log_probs), len(model.rewards))
 
     for r in model.rewards[::-1]:
         if model.reset_locations[count_reset] == counter:
@@ -198,9 +197,9 @@ def update_policy_network(model, optimizer):
     optimizer.zero_grad()
     return total_rew / len(rewards)
 
-load_ca_model()
-load_dd_model()
-# load_models(19200)
+# load_ca_model()
+# load_dd_model()
+load_models(3200)
 
 def main():
     global dd_model
@@ -209,7 +208,7 @@ def main():
     global ca_optimizer
     global dd_optimizer
     global pn_optimizer
-    num_updates = 0
+    num_updates = 100
 
     '''The following Collision Anticipation Network is a
         mentor for the Policy Network. It is pretrained, and no grads required'''
@@ -227,22 +226,21 @@ def main():
         determine_reward_no_repeat(dd_model, pn_model, data[0], args.num_forward_passes)
         dd_optimizer.zero_grad()
         ca_optimizer.zero_grad()
-        print(len(pn_model.saved_log_probs), len(pn_model.rewards), pn_model.reset_locations)
 
-        if (index + 1) % 20 == 0:
+        if (index + 1) % 32 == 0:
             reward = update_policy_network(pn_model, pn_optimizer)
-            # with open("results.txt", "a") as myfile:
-            #     num_updates+=1
-            #     myfile.write(str(num_updates))
-            #     myfile.write(",")
-            #     myfile.write(str(reward))
-            #     myfile.write("\n")
+            with open("results.txt", "a") as myfile:
+                num_updates+=1
+                myfile.write(str(num_updates))
+                myfile.write(",")
+                myfile.write(str(reward))
+                myfile.write("\n")
 
             pn_optimizer.zero_grad()
             print("################################################### ", num_updates, " ####################################################\n")
         if (index + 1) % 320 == 0:
             pn_optimizer.zero_grad()
-            save_models(index + 1)
+            save_models(index + 3200)
             print("----------------------------Model Saved-------------------------------------")
 
 if __name__ == '__main__':

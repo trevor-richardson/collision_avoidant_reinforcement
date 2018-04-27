@@ -125,9 +125,7 @@ def determine_reward_val(dd_model, pn_model, data, num_forward_passes):
                 rew[i] = 0
             else:
                 return 1
-
     return 0
-
 
 def determine_reward_no_repeat(dd_model, pn_model, data, num_forward_passes):
     pdf_values, rew = evaluate_model(dd_model, num_forward_passes, data)
@@ -145,7 +143,7 @@ def determine_reward_no_repeat(dd_model, pn_model, data, num_forward_passes):
                 pn_model.rewards.append(rew[i])
             else:
                 rew[i] = 1
-                pn_model.rewards.append(rew[i])
+                pn_model.rewards.append(-rew[i])
 
     pn_model.rewards.append(rew[-1])
     print("\nMax norm of simulation: ", max(rew))

@@ -78,21 +78,20 @@ class StatefulConv2dLSTMCell(nn.Module):
         f_t = F.sigmoid(
             self.conv2d_x_f(X_t) + self.conv2d_h_f(h_t_previous) + c_t_previous * self.V_f  #w_f needs to be the previous input shape by the number of hidden neurons
         )
-        #i(t) = sigmoid(W_i (conv) x(t) + U_i (conv) h(t-1) + V_i (*) c(t-1)  + b_i)
+
         i_t = F.sigmoid(
             self.conv2d_x_i(X_t) + self.conv2d_h_i(h_t_previous) + c_t_previous * self.V_i
         )
-        #o(t) = sigmoid(W_o (conv) x(t) + U_o (conv) h(t-1) + V_i (*) c(t-1) + b_o)
+
         o_t = F.sigmoid(
             self.conv2d_x_o(X_t) + self.conv2d_h_o(h_t_previous) + c_t_previous * self.V_o
         )
-        #c(t) = f(t) (*) c(t-1) + i(t) (*) hypertan(W_c (conv) x_t + U_c (conv) h(t-1) + b_c)
+
         c_hat_t = F.tanh(
             self.conv2d_x_c(X_t) + self.conv2d_h_c(h_t_previous)
         )
+
         c_t = (f_t * c_t_previous) + (i_t * c_hat_t)
-        #h_t = o_t * tanh(c_t)
         h_t = o_t * F.tanh(c_t)
-        #h(t) = o(t) (*) hypertan(c(t))
 
         return h_t, c_t

@@ -144,12 +144,12 @@ def load_models(iteration):
     global pn_model
     try:
         ca_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/ca_model/780.5778702075141.pth"))
-        pn_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/major_exp_1/pn" + str(iteration) + ".pth"))
+        pn_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/major_exp_2_norepeat/pn" + str(iteration) + ".pth"))
     except ValueError:
         print("Not a valid model to load")
         sys.exit()
 
-load_models(1600)
+load_models(3519)
 
 def main():
     global pn_model

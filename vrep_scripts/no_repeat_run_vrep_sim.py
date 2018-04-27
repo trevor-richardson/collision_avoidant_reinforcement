@@ -90,6 +90,7 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type):
     pn_model.train()
 
     list_of_images = []
+
     if input_type == 0 or input_type ==2:
         vid_states = states[0]
         st_states = states[1]
@@ -172,7 +173,6 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type):
                         d = torch.squeeze(output.data).float().cuda()
                         st_input = Variable(torch.cat([c, d]))
                     else:
-                        print(len(list_of_images), count)
                         stacked_img = np.concatenate(
                             (np.transpose(np.expand_dims((list_of_images[-1]).astype('float'),axis=0), (0, 3, 1, 2)),
                             np.transpose(np.expand_dims((list_of_images[-2]).astype('float'),axis=0), (0, 3, 1, 2))), axis=1)

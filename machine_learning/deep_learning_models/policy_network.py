@@ -28,6 +28,6 @@ class Policy_Network(nn.Module):
         drop_2 = F.tanh(self.h_2(drop_1))
         drop_3 = F.tanh(self.h_3(drop_2))
 
-        y = F.softmax(self.output(drop_3), dim=0)
+        y = F.softmax(self.output(drop_3), dim=1)
 
         return y

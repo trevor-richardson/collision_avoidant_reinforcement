@@ -135,61 +135,60 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type):
                 output, vid_states, st_states = ca_model(vid_to_ca, st_to_ca, vid_states, st_states)
                 output.detach_()
 
-                if (count) % 15 == 0:
-                    if input_type == 0:
-                        if count == 0:
-                            a = torch.from_numpy(list_of_images[-1].flatten()).float().cuda()
-                            b = torch.from_numpy(list_of_images[-1].flatten()).float().cuda()
-                            c =torch.from_numpy(np.asarray(collector[-1]).astype('float')).float().cuda()
-                            d = torch.squeeze(output.data).float().cuda()
-                            input_to_model = torch.cat([a, b, c, d])
-                        else:
-                            a = torch.from_numpy(list_of_images[-1].flatten()).float().cuda()
-                            b = torch.from_numpy(list_of_images[-1].flatten()).float().cuda()
-                            c =torch.from_numpy(np.asarray(collector[-1]).astype('float')).float().cuda()
-                            d = torch.squeeze(output.data).float().cuda()
-                            input_to_model = torch.cat([a, b, c, d])
-                        input_to_model = Variable(input_to_model)
-                        out = pn_model(input_to_model)
-                    elif input_type == 1:
-                        pn_vid = torch.from_numpy(np.transpose(np.expand_dims((list_of_images[-1]).astype('float'),axis=0), (0, 3, 1, 2)))
-                        vid_input = Variable(pn_vid.float().cuda())
+                if input_type == 0:
+                    if count == 0:
+                        a = torch.from_numpy(list_of_images[-1].flatten()).float().cuda()
+                        b = torch.from_numpy(list_of_images[-1].flatten()).float().cuda()
+                        c =torch.from_numpy(np.asarray(collector[-1]).astype('float')).float().cuda()
+                        d = torch.squeeze(output.data).float().cuda()
+                        input_to_model = torch.cat([a, b, c, d])
+                    else:
+                        a = torch.from_numpy(list_of_images[-1].flatten()).float().cuda()
+                        b = torch.from_numpy(list_of_images[-1].flatten()).float().cuda()
+                        c =torch.from_numpy(np.asarray(collector[-1]).astype('float')).float().cuda()
+                        d = torch.squeeze(output.data).float().cuda()
+                        input_to_model = torch.cat([a, b, c, d])
+                    input_to_model = Variable(input_to_model)
+                    out = pn_model(input_to_model)
+                elif input_type == 1:
+                    pn_vid = torch.from_numpy(np.transpose(np.expand_dims((list_of_images[-1]).astype('float'),axis=0), (0, 3, 1, 2)))
+                    vid_input = Variable(pn_vid.float().cuda())
+                    c = torch.from_numpy(np.asarray(collector[-1]).astype('float')).float().cuda()
+                    d = torch.squeeze(output.data).float().cuda()
+                    st_input = Variable(torch.cat([c, d]))
+                    out, pn_vidstates, pn_ststates = pn_model(vid_input, st_input, pn_vidstates, pn_ststates)
+
+                elif input_type == 2:
+                    #stack two images together and I need to verify the images being stacked are reasonable
+                    if count == 0:
+                        stacked_img = np.concatenate(
+                            (np.transpose(np.expand_dims((list_of_images[-1]).astype('float'),axis=0), (0, 3, 1, 2)),
+                            np.transpose(np.expand_dims((list_of_images[-1]).astype('float'),axis=0), (0, 3, 1, 2))), axis=1)
+                        vid_input = Variable(torch.from_numpy(stacked_img).float().cuda())
                         c = torch.from_numpy(np.asarray(collector[-1]).astype('float')).float().cuda()
                         d = torch.squeeze(output.data).float().cuda()
                         st_input = Variable(torch.cat([c, d]))
-                        out, pn_vidstates, pn_ststates = pn_model(vid_input, st_input, pn_vidstates, pn_ststates)
-
-                    elif input_type == 2:
-                        #stack two images together and I need to verify the images being stacked are reasonable
-                        if count == 0:
-                            stacked_img = np.concatenate(
-                                (np.transpose(np.expand_dims((list_of_images[-1]).astype('float'),axis=0), (0, 3, 1, 2)),
-                                np.transpose(np.expand_dims((list_of_images[-1]).astype('float'),axis=0), (0, 3, 1, 2))), axis=1)
-                            vid_input = Variable(torch.from_numpy(stacked_img).float().cuda())
-                            c = torch.from_numpy(np.asarray(collector[-1]).astype('float')).float().cuda()
-                            d = torch.squeeze(output.data).float().cuda()
-                            st_input = Variable(torch.cat([c, d]))
-                        else:
-                            stacked_img = np.concatenate(
-                                (np.transpose(np.expand_dims((list_of_images[-1]).astype('float'),axis=0), (0, 3, 1, 2)),
-                                np.transpose(np.expand_dims((list_of_images[-10]).astype('float'),axis=0), (0, 3, 1, 2))), axis=1)
-                            vid_input = Variable(torch.from_numpy(stacked_img).float().cuda())
-                            c = torch.from_numpy(np.asarray(collector[-1]).astype('float')).float().cuda()
-                            d = torch.squeeze(output.data).float().cuda()
-                            st_input = Variable(torch.cat([c, d]))
-                        out = pn_model(st_input, vid_input)
                     else:
-                        print("Error 12")
-                        sys.exit()
+                        stacked_img = np.concatenate(
+                            (np.transpose(np.expand_dims((list_of_images[-1]).astype('float'),axis=0), (0, 3, 1, 2)),
+                            np.transpose(np.expand_dims((list_of_images[-2]).astype('float'),axis=0), (0, 3, 1, 2))), axis=1)
+                        vid_input = Variable(torch.from_numpy(stacked_img).float().cuda())
+                        c = torch.from_numpy(np.asarray(collector[-1]).astype('float')).float().cuda()
+                        d = torch.squeeze(output.data).float().cuda()
+                        st_input = Variable(torch.cat([c, d]))
+                    out = pn_model(st_input, vid_input)
+                else:
+                    print("Error 12")
+                    sys.exit()
 
-                    # print(out, out.max(1)[1])
-                    # m = Categorical(out)
-                    # action = m.sample()
-                    action = out.max(1)[1]
-                    velo = (action -2)  * 15
+                print(out, out.max(1)[1])
+                # m = Categorical(out)
+                # action = m.sample()
+                action = out.max(1)[1]
+                velo = (action -2)  * 15
 
-                    return_val = vrep.simxSetJointTargetVelocity(clientID, left_handle, velo, vrep.simx_opmode_oneshot)
-                    return_val2 = vrep.simxSetJointTargetVelocity(clientID, right_handle, velo, vrep.simx_opmode_oneshot_wait)
+                return_val = vrep.simxSetJointTargetVelocity(clientID, left_handle, velo, vrep.simx_opmode_oneshot)
+                return_val2 = vrep.simxSetJointTargetVelocity(clientID, right_handle, velo, vrep.simx_opmode_oneshot_wait)
 
                 count+=1
         return collector

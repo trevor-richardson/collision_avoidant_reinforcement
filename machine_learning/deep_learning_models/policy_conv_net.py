@@ -62,7 +62,6 @@ class ConvPolicy_Network(nn.Module):
         hst_1 = F.sigmoid(self.lin_1(hst_0))
         hst_2 = F.sigmoid(self.lin_2(hst_1))
 
-
         flat = torch.cat((himg_2.view(himg_2.size(0), -1), torch.unsqueeze(hst_2, dim=0)), dim=1)
         y = F.softmax(self.output(flat), dim=1)
 

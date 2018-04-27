@@ -40,7 +40,7 @@ class AnticipationNet(nn.Module):
 
     def forward(self, vid_x, st_x, vid_states, st_states):
 
-        hx_0, cx_0 = self.convlstm_0(vid_x, [vid_states[0][0] ,vid_states[0][1]])
+        hx_0, cx_0 = self.convlstm_0(vid_x, (vid_states[0][0] ,vid_states[0][1]))
         hx_1, cx_1 = self.convlstm_1(hx_0, (vid_states[1][0] ,vid_states[1][1]))
         hx_2, cx_2 = self.convlstm_2(hx_1, (vid_states[2][0] ,vid_states[2][1]))
 

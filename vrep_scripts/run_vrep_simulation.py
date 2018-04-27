@@ -111,7 +111,7 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type):
         t_end = time.time() + 2.8
         count = 0
         action = 0
-        inference_counter = 0
+
 
         while (vrep.simxGetConnectionId(clientID)!=-1 and time.time() < t_end):
             res,resolution,image=vrep.simxGetVisionSensorImage(clientID,v0,0,vrep.simx_opmode_buffer)
@@ -137,7 +137,6 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type):
                 output.detach_()
 
                 if (count) % 15 == 0:
-                    inference_counter +=1
                     if input_type == 0:
                         if count == 0:
                             a = torch.from_numpy(list_of_images[-1].flatten()).float().cuda()
@@ -192,7 +191,7 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type):
                     return_val2 = vrep.simxSetJointTargetVelocity(clientID, right_handle, velo, vrep.simx_opmode_oneshot_wait)
 
                 count+=1
-        print(inference_counter, "inference counter")
+
         return list_of_images, collector
     else:
         sys.exit()

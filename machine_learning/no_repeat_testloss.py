@@ -55,7 +55,7 @@ parser.add_argument('--policy_inp_type', type=int, default=0, metavar='N',
                     help='Type of input for policy net')
 
 #training and testing args
-parser.add_argument('--validation_iterations', type=int, default=100, metavar='N',
+parser.add_argument('--validation_iterations', type=int, default=50, metavar='N',
                     help='Number of times I want to validate a reinforcement learning model')
 parser.add_argument('--num_forward_passes', type=int, default=32, metavar='N',
                     help='Number of forward passes for dropout at test time for multivariate_normal pdf calc')
@@ -173,7 +173,7 @@ def main():
     results_lst = []
 
     #populate list of models and order them
-    models_dir = base_dir + '/machine_learning/saved_models/major_exp_1/'
+    models_dir = base_dir + '/machine_learning/saved_models/major_exp_2_norepeat/'
     models_lst = [f for f in listdir(models_dir) if isfile(join(models_dir, f))]
     for indx, element in enumerate(models_lst):
         models_lst[indx] = models_dir + element
@@ -184,29 +184,29 @@ def main():
         start = model.find('pn') + 3
         end = model.find('.pth', start)
         current_model_no = int(model[start:end])
-
-        print("####################################################################################################################\n")
-        print(model)
-        count = 0
-
-        for index in range(args.validation_iterations):
-            states = execute_exp(ca_model, pn_model, 0, 1, args.policy_inp_type)
-            collision_detector = determine_reward_val(dd_model, pn_model, states[0], args.num_forward_passes)
-            if collision_detector > 0:
-                print("Hit")
-                count+=1
-            else:
-                print("Miss")
-            dd_optimizer.zero_grad()
-            ca_optimizer.zero_grad()
-            pn_optimizer.zero_grad()
-            del(pn_model.saved_log_probs[:])
-            del(pn_model.rewards[:])
-            del(pn_model.reset_locations[:])
-
-        print("count ", count)
-        results_lst.append([current_model_no, count])
-    np.save("validation_results", np.asarray(results_lst))
+        print(model, current_model_no)
+    #     print("####################################################################################################################\n")
+    #     print(model)
+    #     count = 0
+    #
+    #     for index in range(args.validation_iterations):
+    #         states = execute_exp(ca_model, pn_model, 0, 1, args.policy_inp_type)
+    #         collision_detector = determine_reward_val(dd_model, pn_model, states[0], args.num_forward_passes)
+    #         if collision_detector > 0:
+    #             print("Hit")
+    #             count+=1
+    #         else:
+    #             print("Miss")
+    #         dd_optimizer.zero_grad()
+    #         ca_optimizer.zero_grad()
+    #         pn_optimizer.zero_grad()
+    #         del(pn_model.saved_log_probs[:])
+    #         del(pn_model.rewards[:])
+    #         del(pn_model.reset_locations[:])
+    #
+    #     print("count ", count)
+    #     results_lst.append([current_model_no, count])
+    # np.save("validation_results", np.asarray(results_lst))
 
 
 if __name__ == '__main__':
