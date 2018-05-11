@@ -39,8 +39,6 @@ class ConvPolicy_Network(nn.Module):
 
         ''' conv0 padding of two and stride for now this is hard coded to work'''
         conv_flat_size = (inp_img_shp[1] // 4) * (inp_img_shp[2] // 4) * filter_2
-        # print(num_neurons_2, "conv flat ", conv_flat_size + num_neurons_2)
-        #analyzes state information
 
         self.lin_0 = nn.Linear(input_shp_st, num_neurons_0)
         self.lin_1 = nn.Linear(num_neurons_0, num_neurons_1)
@@ -63,7 +61,7 @@ class ConvPolicy_Network(nn.Module):
         hst_1 = F.sigmoid(self.lin_1(hst_0))
         hst_2 = F.sigmoid(self.lin_2(hst_1))
 
-        flat = torch.cat((himg_2.view(himg_2.size(0), -1), torch.unsqueeze(hst_2, dim=0)), dim=1)
+        flat = torch.cat((himg_2.view(himg_2.size(0), -1), hst_2), dim=1)
         y = F.softmax(self.output(flat), dim=1)
 
         return y

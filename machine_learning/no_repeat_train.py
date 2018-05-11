@@ -92,6 +92,8 @@ parser.add_argument('--gamma', type=float, default=.99, metavar='G',
                     help='discount factor (default: 0.999)')
 parser.add_argument('--update_size', type=int, default=100, metavar='N',
                     help='Number of trials a specific policy is run on before we train our models (default 100)')
+parser.add_argument('--use_ca', type=str2bool, nargs='?', default=True,
+                    help='Whether or not to use pretrained collision anticpation model')
 args = parser.parse_args()
 
 rgb_shape = (3, 64, 64)
@@ -106,32 +108,53 @@ pn_output = 5
 eps = np.finfo(np.float32).eps.item()
 
 '''
+
 0 - fcn
 1 - conv lstm 2 branches for state action and image
 2 - conv network
 3 - drnn
 
 '''
-
-if args.policy_inp_type == 0:
-    pn_inp = 3 * 64 * 64 * 2 + 10 + 10
-    pn_model = Policy_Network(pn_inp, args.hidden_0, args.hidden_1, args.hidden_2, args.hidden_3, pn_output)
-elif args.policy_inp_type == 1:
-    st_shp = (dd_inp_shape+args.pred_window)
-    pn_model = ConvLSTMPolicyNet(rgb_shape, st_shp, h_0, h_1, h_2, h_out, (args.no_filters_0,
-        args.no_filters_1, args.no_filters_2), (args.kernel_0, args.kernel_0), args.strides, pn_output,
-        padding=0)
-elif args.policy_inp_type == 2:
-    print("Initializing conv policy")
-    st_shp = (dd_inp_shape+args.pred_window)
-    pn_model = ConvPolicy_Network(st_shp, (6, 64, 64), args.no_filters_0, args.no_filters_1,
-        args.no_filters_2, 5, args.hidden_0, args.hidden_1, args.hidden_2, pn_output)
-elif args.policy_inp_type == 3:
-    pn_inp = 3 * 64 * 64 * 2 + 10 + 10
-    pn_model = Policy_LSTMNetwork(pn_inp, args.hidden_0, args.hidden_1, args.hidden_2, pn_output)
+if args.use_ca:
+    if args.policy_inp_type == 0:
+        pn_inp = 3 * 64 * 64 * 2 + 10 + 10
+        pn_model = Policy_Network(pn_inp, args.hidden_0, args.hidden_1, args.hidden_2, args.hidden_3, pn_output)
+    elif args.policy_inp_type == 1:
+        st_shp = (dd_inp_shape+args.pred_window)
+        pn_model = ConvLSTMPolicyNet(rgb_shape, st_shp, h_0, h_1, h_2, h_out, (args.no_filters_0,
+            args.no_filters_1, args.no_filters_2), (args.kernel_0, args.kernel_0), args.strides, pn_output,
+            padding=0)
+    elif args.policy_inp_type == 2:
+        print("Initializing conv policy")
+        st_shp = (dd_inp_shape+args.pred_window)
+        pn_model = ConvPolicy_Network(st_shp, (6, 64, 64), args.no_filters_0, args.no_filters_1,
+            args.no_filters_2, 5, args.hidden_0, args.hidden_1, args.hidden_2, pn_output)
+    elif args.policy_inp_type == 3:
+        pn_inp = 3 * 64 * 64 * 2 + 10 + 10
+        pn_model = Policy_LSTMNetwork(pn_inp, args.hidden_0, args.hidden_1, args.hidden_2, pn_output)
+    else:
+        print("Enter a correct input type")
+        sys.exit()
 else:
-    print("Enter a correct input type")
-    sys.exit()
+    if args.policy_inp_type == 0:
+        pn_inp = 3 * 64 * 64 * 2 + 10
+        pn_model = Policy_Network(pn_inp, args.hidden_0, args.hidden_1, args.hidden_2, args.hidden_3, pn_output)
+    elif args.policy_inp_type == 1:
+        st_shp = (dd_inp_shape)
+        pn_model = ConvLSTMPolicyNet(rgb_shape, st_shp, h_0, h_1, h_2, h_out, (args.no_filters_0,
+            args.no_filters_1, args.no_filters_2), (args.kernel_0, args.kernel_0), args.strides, pn_output,
+            padding=0)
+    elif args.policy_inp_type == 2:
+        print("Initializing conv policy")
+        st_shp = (dd_inp_shape)
+        pn_model = ConvPolicy_Network(st_shp, (6, 64, 64), args.no_filters_0, args.no_filters_1,
+            args.no_filters_2, 5, args.hidden_0, args.hidden_1, args.hidden_2, pn_output)
+    elif args.policy_inp_type == 3:
+        pn_inp = 3 * 64 * 64 * 2 + 10
+        pn_model = Policy_LSTMNetwork(pn_inp, args.hidden_0, args.hidden_1, args.hidden_2, pn_output)
+    else:
+        print("Enter a correct input type")
+        sys.exit()
 
 ca_model = AnticipationNet(rgb_shape, dd_inp_shape, h_0, h_1, h_2, h_out, (args.no_filters_0,
     args.no_filters_1, args.no_filters_2), (args.kernel_0, args.kernel_0), args.strides, args.pred_window,
@@ -233,7 +256,7 @@ def main():
     print("################################################### ", num_updates, " ####################################################\n")
     for index in range(args.training_iterations):
 
-        data = execute_exp(ca_model, pn_model, 0, 1, args.policy_inp_type) #needs to return batch, necesary_arguments,
+        data = execute_exp(ca_model, pn_model, 0, 1, args.policy_inp_type, args.use_ca) #needs to return batch, necesary_arguments,
         pn_model.reset_locations.append(len(pn_model.saved_log_probs) -1)
 
         determine_reward_no_repeat(dd_model, pn_model, data[0], args.num_forward_passes)
