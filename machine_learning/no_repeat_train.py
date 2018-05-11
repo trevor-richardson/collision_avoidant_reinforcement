@@ -31,6 +31,7 @@ from policy_network import Policy_Network
 from collision_avoidance import AnticipationNet
 from policy_convlstm_net import ConvLSTMPolicyNet
 from policy_conv_net import ConvPolicy_Network
+from policy_lstm_network import Policy_LSTMNetwork
 from no_repeat_run_vrep_sim import execute_exp
 from pertubation_detection import *
 
@@ -104,6 +105,13 @@ h_out = 50
 pn_output = 5
 eps = np.finfo(np.float32).eps.item()
 
+'''
+0 - fcn
+1 - conv lstm 2 branches for state action and image
+2 - conv network
+3 - drnn
+
+'''
 
 if args.policy_inp_type == 0:
     pn_inp = 3 * 64 * 64 * 2 + 10 + 10
@@ -118,6 +126,9 @@ elif args.policy_inp_type == 2:
     st_shp = (dd_inp_shape+args.pred_window)
     pn_model = ConvPolicy_Network(st_shp, (6, 64, 64), args.no_filters_0, args.no_filters_1,
         args.no_filters_2, 5, args.hidden_0, args.hidden_1, args.hidden_2, pn_output)
+elif args.policy_inp_type == 3:
+    pn_inp = 3 * 64 * 64 * 2 + 10 + 10
+    pn_model = Policy_LSTMNetwork(pn_inp, args.hidden_0, args.hidden_1, args.hidden_2, pn_output)
 else:
     print("Enter a correct input type")
     sys.exit()

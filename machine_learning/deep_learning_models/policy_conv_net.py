@@ -18,6 +18,7 @@ class ConvPolicy_Network(nn.Module):
         super(ConvPolicy_Network, self).__init__()
         print("Initializing Policy Network")
 
+
         #Analyzes image information
         self.img_inp = inp_img_shp
 
