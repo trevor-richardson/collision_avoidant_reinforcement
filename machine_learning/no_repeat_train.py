@@ -102,6 +102,7 @@ h_1 = 15
 h_2 = 15
 h_out = 50
 pn_output = 5
+eps = np.finfo(np.float32).eps.item()
 
 
 if args.policy_inp_type == 0:
@@ -185,10 +186,11 @@ def update_policy_network(model, optimizer):
         counter = counter -1
     rewards = torch.Tensor(rewards)
     total_rew = rewards.sum()
+    rewards = (rewards - rewards.mean()) / (rewards.std() + eps)
 
     for log_prob, reward in zip(model.saved_log_probs, rewards):
         policy_loss.append(-log_prob * reward)
-    policy_loss = torch.cat(policy_loss).sum() / len(rewards)  #normalize or scale gradient by total steps
+    policy_loss = torch.cat(policy_loss).mean() #/ len(rewards)  #normalize or scale gradient by total steps
     policy_loss.backward()
     optimizer.step()
     del model.rewards[:]
@@ -197,9 +199,9 @@ def update_policy_network(model, optimizer):
     optimizer.zero_grad()
     return total_rew / len(rewards)
 
-# load_ca_model()
-# load_dd_model()
-load_models(3200)
+load_ca_model()
+load_dd_model()
+# load_models(3200)
 
 def main():
     global dd_model
@@ -208,7 +210,7 @@ def main():
     global ca_optimizer
     global dd_optimizer
     global pn_optimizer
-    num_updates = 100
+    num_updates = 0
 
     '''The following Collision Anticipation Network is a
         mentor for the Policy Network. It is pretrained, and no grads required'''
@@ -227,7 +229,7 @@ def main():
         dd_optimizer.zero_grad()
         ca_optimizer.zero_grad()
 
-        if (index + 1) % 32 == 0:
+        if (index + 1) % 3 == 0:
             reward = update_policy_network(pn_model, pn_optimizer)
             with open("results.txt", "a") as myfile:
                 num_updates+=1
@@ -240,7 +242,7 @@ def main():
             print("################################################### ", num_updates, " ####################################################\n")
         if (index + 1) % 320 == 0:
             pn_optimizer.zero_grad()
-            save_models(index + 3200)
+            save_models(index)
             print("----------------------------Model Saved-------------------------------------")
 
 if __name__ == '__main__':

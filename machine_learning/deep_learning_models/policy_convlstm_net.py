@@ -4,7 +4,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 '''This network takes in the current state and predicts future collisions'''
-
+'''
+Test with only conv lstm test with only lstm --
+'''
 class ConvLSTMPolicyNet(nn.Module):
     def __init__(self, input_shp_vid,
                         input_shp_st,
@@ -33,8 +35,9 @@ class ConvLSTMPolicyNet(nn.Module):
         self.h_1_sz = hidden_1
         self.h_2_sz = hidden_2
 
-        flat = self.convlstm_2.output_shape[0] * self.convlstm_2.output_shape[1] * self.convlstm_2.output_shape[2] + hidden_2
-
+        # flat = self.convlstm_2.output_shape[0] * self.convlstm_2.output_shape[1] * self.convlstm_2.output_shape[2] + hidden_2
+        # flat = self.convlstm_2.output_shape[0] * self.convlstm_2.output_shape[1] * self.convlstm_2.output_shape[2]
+        flat = hidden_2
         self.dropout = nn.Dropout(dropout_rte)
         self.fcn1 = nn.Linear(flat, hidden_out)
         self.fcn2 = nn.Linear(hidden_out , output_shp)
@@ -53,7 +56,11 @@ class ConvLSTMPolicyNet(nn.Module):
         h_1, c_1 = self.LSTM_1(h_0, (st_states[1][0], st_states[1][1]))
         h_2, c_2 = self.LSTM_2(h_1, (st_states[2][0], st_states[2][1]))
 
-        concat = torch.cat((hx_2.view(hx_2.size(0), -1), h_2), dim=1)
+        # concat = torch.cat((hx_2.view(hx_2.size(0), -1), h_2), dim=1)
+        # flat_1 = hx_2.view(hx_2.size(0), -1)
+        # concat = torch.cat((flat_1, h_2), dim=1)
+        concat = h_2
+        print(h_2.shape, concat.shape)
 
         dropped = self.dropout(concat)
         h_out = F.relu(self.fcn1(dropped))

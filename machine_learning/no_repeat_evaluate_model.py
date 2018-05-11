@@ -33,11 +33,6 @@ from policy_conv_net import ConvPolicy_Network
 from no_repeat_demo_sim import execute_exp
 from pertubation_detection import *
 
-'''
-----------------------
-Read and implement ddpg
-'''
-
 ''' Global Variables of Interest '''
 def str2bool(v):
     if v.lower() in ('yes', 'true', 't', 'y', '1'):
@@ -46,7 +41,6 @@ def str2bool(v):
         return False
     else:
         raise argparse.ArgumentTypeError('Boolean value expected.')
-
 
 parser = argparse.ArgumentParser(description='Reinforcement Learning Guided by Deep Dynamics and Anticipation Models in Pytorch')
 parser.add_argument('--pred_window', type=int, default=10, metavar='N',
@@ -122,11 +116,11 @@ else:
     print("Enter a correct input type")
     sys.exit()
 
-
 h_0 = 15
 h_1 = 15
 h_2 = 15
 h_out = 50
+
 ca_model = AnticipationNet(rgb_shape, dd_inp_shape, h_0, h_1, h_2, h_out, (args.no_filters_0,
     args.no_filters_1, args.no_filters_2), (args.kernel_0, args.kernel_0), args.strides, args.pred_window,
     padding=0, dropout_rte=args.drop_rte)
@@ -149,7 +143,7 @@ def load_models(iteration):
         print("Not a valid model to load")
         sys.exit()
 
-load_models(3519)
+load_models(640)
 
 def main():
     global pn_model
@@ -165,8 +159,6 @@ def main():
         del(pn_model.saved_log_probs[:])
         del(pn_model.rewards[:])
         del(pn_model.reset_locations[:])
-
-
 
 if __name__ == '__main__':
     main()

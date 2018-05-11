@@ -15,11 +15,9 @@ class Policy_Network(nn.Module):
         self.h_3 = nn.Linear(num_neurons_2, num_neurons_3)
         self.output = nn.Linear(num_neurons_3, output_shp)
 
-
         self.saved_log_probs = []
         self.rewards = []
         self.reset_locations = []
-
 
     def forward(self, x):
 
@@ -28,6 +26,6 @@ class Policy_Network(nn.Module):
         drop_2 = F.tanh(self.h_2(drop_1))
         drop_3 = F.tanh(self.h_3(drop_2))
 
-        y = F.softmax(self.output(drop_3), dim=1)
+        y = F.softmax(self.output(drop_3), dim=0)
 
         return y
