@@ -6,7 +6,17 @@ import sys
 import math
 
 class StatefulConv2dLSTMCell(nn.Module):
-    def __init__(self, input_shape, no_filters, kernel_shape, strides, pad=0, weight_init=None, reccurent_weight_init=None,  cell_weight_init=None, bias_init=None, drop=None, rec_drop=None):
+    def __init__(self, input_shape,
+                        no_filters,
+                        kernel_shape,
+                        strides,
+                        pad=0,
+                        weight_init=None,
+                        reccurent_weight_init=None,
+                        cell_weight_init=None,
+                        bias_init=None,
+                        drop=None,
+                        rec_drop=None):
         super(StatefulConv2dLSTMCell, self).__init__()
         #This needs to be different depending on padding
         if(cell_weight_init == None):
