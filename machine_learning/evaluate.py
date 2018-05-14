@@ -87,6 +87,8 @@ parser.add_argument('--drop_rte', type=float, default=.3, metavar='N',
                     help='dropout rate (default .3)')
 parser.add_argument('--gamma', type=float, default=.99, metavar='G',
                     help='discount factor (default: 0.999)')
+parser.add_argument('--use_ca', type=str2bool, nargs='?', default=True,
+                    help='Whether or not to use pretrained collision anticpation model')
 parser.add_argument('--update_size', type=int, default=100, metavar='N',
                     help='Number of trials a specific policy is run on before we train our models (default 100)')
 args = parser.parse_args()
@@ -96,25 +98,53 @@ rgb_shape = (3, 64, 64)
 dd_inp_shape = (10)
 dd_output_shape = (9)
 ca_output_shape = 10
-
+h_0 = 15
+h_1 = 15
+h_2 = 15
+h_out = 50
 pn_output = 5
 pn_inp = 3 * 64 * 64 * 2 + 10 + 10
 
-if args.policy_inp_type == 0:
-    pn_inp = 3 * 64 * 64 * 2 + 10 + 10
-    pn_model = Policy_Network(pn_inp, args.hidden_0, args.hidden_1, args.hidden_2, args.hidden_3, pn_output)
-elif args.policy_inp_type == 1:
-    st_shp = (dd_inp_shape+args.pred_window)
-    pn_model = ConvLSTMPolicyNet(rgb_shape, st_shp, h_0, h_1, h_2, h_out, (args.no_filters_0,
-        args.no_filters_1, args.no_filters_2), (args.kernel_0, args.kernel_0), args.strides, pn_output,
-        padding=0)
-elif args.policy_inp_type == 2:
-    st_shp = (dd_inp_shape+args.pred_window)
-    pn_model = ConvPolicy_Network(st_shp, (6, 64, 64), args.no_filters_0, args.no_filters_1,
-        args.no_filters_2, 5, args.hidden_0, args.hidden_1, args.hidden_2, pn_output)
+if args.use_ca:
+    if args.policy_inp_type == 0:
+        pn_inp = 3 * 64 * 64 * 2 + 10 + 10
+        pn_model = Policy_Network(pn_inp, args.hidden_0, args.hidden_1, args.hidden_2, args.hidden_3, pn_output)
+    elif args.policy_inp_type == 1:
+        st_shp = (dd_inp_shape+args.pred_window)
+        pn_model = ConvLSTMPolicyNet(rgb_shape, st_shp, h_0, h_1, h_2, h_out, (args.no_filters_0,
+            args.no_filters_1, args.no_filters_2), (args.kernel_0, args.kernel_0), args.strides, pn_output,
+            padding=0)
+    elif args.policy_inp_type == 2:
+        print("Initializing conv policy")
+        st_shp = (dd_inp_shape+args.pred_window)
+        pn_model = ConvPolicy_Network(st_shp, (6, 64, 64), args.no_filters_0, args.no_filters_1,
+            args.no_filters_2, 5, args.hidden_0, args.hidden_1, args.hidden_2, pn_output)
+    elif args.policy_inp_type == 3:
+        pn_inp = 3 * 64 * 64 * 2 + 10 + 10
+        pn_model = Policy_LSTMNetwork(pn_inp, args.hidden_0, args.hidden_1, args.hidden_2, pn_output)
+    else:
+        print("Enter a correct input type")
+        sys.exit()
 else:
-    print("Enter a correct input type")
-    sys.exit()
+    if args.policy_inp_type == 0:
+        pn_inp = 3 * 64 * 64 * 2 + 10
+        pn_model = Policy_Network(pn_inp, args.hidden_0, args.hidden_1, args.hidden_2, args.hidden_3, pn_output)
+    elif args.policy_inp_type == 1:
+        st_shp = (dd_inp_shape)
+        pn_model = ConvLSTMPolicyNet(rgb_shape, st_shp, h_0, h_1, h_2, h_out, (args.no_filters_0,
+            args.no_filters_1, args.no_filters_2), (args.kernel_0, args.kernel_0), args.strides, pn_output,
+            padding=0)
+    elif args.policy_inp_type == 2:
+        print("Initializing conv policy")
+        st_shp = (dd_inp_shape)
+        pn_model = ConvPolicy_Network(st_shp, (6, 64, 64), args.no_filters_0, args.no_filters_1,
+            args.no_filters_2, 5, args.hidden_0, args.hidden_1, args.hidden_2, pn_output)
+    elif args.policy_inp_type == 3:
+        pn_inp = 3 * 64 * 64 * 2 + 10
+        pn_model = Policy_LSTMNetwork(pn_inp, args.hidden_0, args.hidden_1, args.hidden_2, pn_output)
+    else:
+        print("Enter a correct input type")
+        sys.exit()
 
 h_0 = 15
 h_1 = 15
@@ -138,12 +168,12 @@ def load_models(iteration):
     global pn_model
     try:
         ca_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/ca_model/780.5778702075141.pth"))
-        pn_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/major_exp_2_norepeat/pn" + str(iteration) + ".pth"))
+        pn_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/convlstm_0/pn" + str(iteration) + ".pth"))
     except ValueError:
         print("Not a valid model to load")
         sys.exit()
 
-load_models(640)
+load_models(5119)
 
 def main():
     global pn_model
@@ -153,7 +183,7 @@ def main():
 
     for index in range(args.training_iterations):
         print("####################################################################################################################\n")
-        execute_exp(ca_model, pn_model, 0, 1, args.policy_inp_type)
+        execute_exp(ca_model, pn_model, 0, 1, args.policy_inp_type, args.use_ca)
         ca_optimizer.zero_grad()
         pn_optimizer.zero_grad()
         del(pn_model.saved_log_probs[:])

@@ -95,6 +95,8 @@ parser.add_argument('--gamma', type=float, default=.99, metavar='G',
                     help='discount factor (default: 0.999)')
 parser.add_argument('--update_size', type=int, default=100, metavar='N',
                     help='Number of trials a specific policy is run on before we train our models (default 100)')
+parser.add_argument('--use_ca', type=str2bool, nargs='?', default=True,
+                    help='Whether or not to use pretrained collision anticpation model')
 args = parser.parse_args()
 
 
@@ -102,25 +104,53 @@ rgb_shape = (3, 64, 64)
 dd_inp_shape = (10)
 dd_output_shape = (9)
 ca_output_shape = 10
-
+h_0 = 15
+h_1 = 15
+h_2 = 15
+h_out = 50
 pn_output = 5
 pn_inp = 3 * 64 * 64 * 2 + 10 + 10
 
-if args.policy_inp_type == 0:
-    pn_inp = 3 * 64 * 64 * 2 + 10 + 10
-    pn_model = Policy_Network(pn_inp, args.hidden_0, args.hidden_1, args.hidden_2, args.hidden_3, pn_output)
-elif args.policy_inp_type == 1:
-    st_shp = (dd_inp_shape+args.pred_window)
-    pn_model = ConvLSTMPolicyNet(rgb_shape, st_shp, h_0, h_1, h_2, h_out, (args.no_filters_0,
-        args.no_filters_1, args.no_filters_2), (args.kernel_0, args.kernel_0), args.strides, pn_output,
-        padding=0)
-elif args.policy_inp_type == 2:
-    st_shp = (dd_inp_shape+args.pred_window)
-    pn_model = ConvPolicy_Network(st_shp, (6, 64, 64), args.no_filters_0, args.no_filters_1,
-        args.no_filters_2, 5, args.hidden_0, args.hidden_1, args.hidden_2, pn_output)
+if args.use_ca:
+    if args.policy_inp_type == 0:
+        pn_inp = 3 * 64 * 64 * 2 + 10 + 10
+        pn_model = Policy_Network(pn_inp, args.hidden_0, args.hidden_1, args.hidden_2, args.hidden_3, pn_output)
+    elif args.policy_inp_type == 1:
+        st_shp = (dd_inp_shape+args.pred_window)
+        pn_model = ConvLSTMPolicyNet(rgb_shape, st_shp, h_0, h_1, h_2, h_out, (args.no_filters_0,
+            args.no_filters_1, args.no_filters_2), (args.kernel_0, args.kernel_0), args.strides, pn_output,
+            padding=0)
+    elif args.policy_inp_type == 2:
+        print("Initializing conv policy")
+        st_shp = (dd_inp_shape+args.pred_window)
+        pn_model = ConvPolicy_Network(st_shp, (6, 64, 64), args.no_filters_0, args.no_filters_1,
+            args.no_filters_2, 5, args.hidden_0, args.hidden_1, args.hidden_2, pn_output)
+    elif args.policy_inp_type == 3:
+        pn_inp = 3 * 64 * 64 * 2 + 10 + 10
+        pn_model = Policy_LSTMNetwork(pn_inp, args.hidden_0, args.hidden_1, args.hidden_2, pn_output)
+    else:
+        print("Enter a correct input type")
+        sys.exit()
 else:
-    print("Enter a correct input type")
-    sys.exit()
+    if args.policy_inp_type == 0:
+        pn_inp = 3 * 64 * 64 * 2 + 10
+        pn_model = Policy_Network(pn_inp, args.hidden_0, args.hidden_1, args.hidden_2, args.hidden_3, pn_output)
+    elif args.policy_inp_type == 1:
+        st_shp = (dd_inp_shape)
+        pn_model = ConvLSTMPolicyNet(rgb_shape, st_shp, h_0, h_1, h_2, h_out, (args.no_filters_0,
+            args.no_filters_1, args.no_filters_2), (args.kernel_0, args.kernel_0), args.strides, pn_output,
+            padding=0)
+    elif args.policy_inp_type == 2:
+        print("Initializing conv policy")
+        st_shp = (dd_inp_shape)
+        pn_model = ConvPolicy_Network(st_shp, (6, 64, 64), args.no_filters_0, args.no_filters_1,
+            args.no_filters_2, 5, args.hidden_0, args.hidden_1, args.hidden_2, pn_output)
+    elif args.policy_inp_type == 3:
+        pn_inp = 3 * 64 * 64 * 2 + 10
+        pn_model = Policy_LSTMNetwork(pn_inp, args.hidden_0, args.hidden_1, args.hidden_2, pn_output)
+    else:
+        print("Enter a correct input type")
+        sys.exit()
 
 
 h_0 = 15
@@ -171,42 +201,43 @@ def main():
     global dd_model
     global dd_optimizer
     results_lst = []
-
     #populate list of models and order them
-    models_dir = base_dir + '/machine_learning/saved_models/major_exp_2_norepeat/'
+    models_dir = base_dir + '/machine_learning/saved_models/conv_0/'
     models_lst = [f for f in listdir(models_dir) if isfile(join(models_dir, f))]
+    model_path = []
     for indx, element in enumerate(models_lst):
-        models_lst[indx] = models_dir + element
+        model_path.append(models_dir + element)
+        print(model_path[-1], element[2:][:-4])
 
-    for model in models_lst:
+    for index, model in enumerate(model_path):
         load_pn_model(model)
 
         start = model.find('pn') + 3
         end = model.find('.pth', start)
         current_model_no = int(model[start:end])
-        print(model, current_model_no)
-    #     print("####################################################################################################################\n")
-    #     print(model)
-    #     count = 0
-    #
-    #     for index in range(args.validation_iterations):
-    #         states = execute_exp(ca_model, pn_model, 0, 1, args.policy_inp_type)
-    #         collision_detector = determine_reward_val(dd_model, pn_model, states[0], args.num_forward_passes)
-    #         if collision_detector > 0:
-    #             print("Hit")
-    #             count+=1
-    #         else:
-    #             print("Miss")
-    #         dd_optimizer.zero_grad()
-    #         ca_optimizer.zero_grad()
-    #         pn_optimizer.zero_grad()
-    #         del(pn_model.saved_log_probs[:])
-    #         del(pn_model.rewards[:])
-    #         del(pn_model.reset_locations[:])
-    #
-    #     print("count ", count)
-    #     results_lst.append([current_model_no, count])
-    # np.save("validation_results", np.asarray(results_lst))
+        print(model, current_model_no, len(model_path), index)
+        print("####################################################################################################################\n")
+        print(model)
+        count = 0
+
+        for inner_index in range(args.validation_iterations):
+            states = execute_exp(ca_model, pn_model, 0, 1, args.policy_inp_type, args.use_ca)
+            collision_detector = determine_reward_val(dd_model, pn_model, states[0], args.num_forward_passes)
+            if collision_detector > 0:
+                print("Hit")
+                count+=1
+            else:
+                print("Miss")
+            dd_optimizer.zero_grad()
+            ca_optimizer.zero_grad()
+            pn_optimizer.zero_grad()
+            del(pn_model.saved_log_probs[:])
+            del(pn_model.rewards[:])
+            del(pn_model.reset_locations[:])
+
+        print("count ", count)
+        results_lst.append([int(models_lst[index][2:][:-4]), count])
+    np.save("validation_results", np.asarray(results_lst))
 
 
 if __name__ == '__main__':

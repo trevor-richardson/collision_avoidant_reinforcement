@@ -224,7 +224,7 @@ def update_policy_network(model, optimizer):
 
     for log_prob, reward in zip(model.saved_log_probs, rewards):
         policy_loss.append(-log_prob * reward)
-    policy_loss = torch.cat(policy_loss).mean() #/ len(rewards)  #normalize or scale gradient by total steps
+    policy_loss = torch.cat(policy_loss).sum() / len(rewards)  #normalize or scale gradient by total steps
     policy_loss.backward()
     optimizer.step()
     del model.rewards[:]
@@ -263,7 +263,7 @@ def main():
         dd_optimizer.zero_grad()
         ca_optimizer.zero_grad()
 
-        if (index + 1) % 3 == 0:
+        if (index + 1) % 32 == 0:
             reward = update_policy_network(pn_model, pn_optimizer)
             with open("results.txt", "a") as myfile:
                 num_updates+=1

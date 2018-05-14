@@ -49,6 +49,7 @@ class ConvLSTMPolicyNet(nn.Module):
 
         hx_0, cx_0 = self.convlstm_0(vid_x, (vid_states[0][0] ,vid_states[0][1]))
         hx_1, cx_1 = self.convlstm_1(hx_0, (vid_states[1][0] ,vid_states[1][1]))
+
         hx_2, cx_2 = self.convlstm_2(hx_1, (vid_states[2][0] ,vid_states[2][1]))
 
         h_0, c_0 = self.LSTM_0(st_x, (st_states[0][0], st_states[0][1]))
@@ -58,8 +59,9 @@ class ConvLSTMPolicyNet(nn.Module):
         concat = torch.cat((hx_2.view(hx_2.size(0), -1), h_2), dim=1)
 
         dropped = self.dropout(concat)
-        h_out = F.relu(self.fcn1(dropped))
+        h_out = F.tanh(self.fcn1(dropped))
 
         y = F.softmax(self.fcn2(h_out), dim=1) #regress the outputs
+
 
         return y, [[hx_0, cx_0], [hx_1, cx_1], [hx_2, cx_2]], [[h_0, c_0], [h_1, c_1], [h_2, c_2]]
