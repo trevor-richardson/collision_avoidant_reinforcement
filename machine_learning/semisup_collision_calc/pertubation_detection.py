@@ -133,7 +133,6 @@ def determine_reward_no_repeat(dd_model, pn_model, data, num_forward_passes, onl
     minimum = min(rew)
 
 
-
     for i in range(len(rew)):
         if rew[i] < high:
             rew[i] = 0
@@ -149,7 +148,6 @@ def determine_reward_no_repeat(dd_model, pn_model, data, num_forward_passes, onl
             for index, element in enumerate(rew):
                 pn_model.rewards.append(element)
                 pn_model.saved_log_probs.append(pn_model.current_log_probs[index])
-                print(index, len(pn_model.current_log_probs))
             pn_model.saved_log_probs.append(pn_model.current_log_probs[-1])
             pn_model.rewards.append(rew[-1])
             pn_model.reset_locations.append(len(pn_model.saved_log_probs) -1)
@@ -160,7 +158,6 @@ def determine_reward_no_repeat(dd_model, pn_model, data, num_forward_passes, onl
         for index, element in enumerate(rew):
             pn_model.rewards.append(element)
             pn_model.saved_log_probs.append(pn_model.current_log_probs[index])
-            print(index, len(pn_model.current_log_probs))
         pn_model.saved_log_probs.append(pn_model.current_log_probs[-1])
         pn_model.rewards.append(rew[-1])
         pn_model.reset_locations.append(len(pn_model.saved_log_probs) -1)

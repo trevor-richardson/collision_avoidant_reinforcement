@@ -249,6 +249,7 @@ def main():
     global dd_optimizer
     global pn_optimizer
     num_updates = 0
+    update_counter = 1
 
     '''The following Collision Anticipation Network is a
         mentor for the Policy Network. It is pretrained, and no grads required'''
@@ -263,11 +264,11 @@ def main():
         data = execute_exp(ca_model, pn_model, 0, 1, args.policy_inp_type, args.use_ca) #needs to return batch, necesary_arguments,
 
         determine_reward_no_repeat(dd_model, pn_model, data[0], args.num_forward_passes, args.all_hit)
-        print(len(pn_model.saved_log_probs), len(pn_model.rewards), len(pn_model.current_log_probs), pn_model.reset_locations)
         dd_optimizer.zero_grad()
         ca_optimizer.zero_grad()
 
         if len(pn_model.reset_locations) == 32 :
+            update_counter+=1
             reward = update_policy_network(pn_model, pn_optimizer)
             with open("results.txt", "a") as myfile:
                 num_updates+=1
@@ -278,7 +279,8 @@ def main():
 
             pn_optimizer.zero_grad()
             print("################################################### ", num_updates, " ####################################################\n")
-        if len(pn_model.reset_locations) == 64:
+        if update_counter % 5 == 0:
+            print("in here")
             pn_optimizer.zero_grad()
             save_models(index)
             print("----------------------------Model Saved-------------------------------------")
