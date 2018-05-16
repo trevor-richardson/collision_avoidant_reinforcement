@@ -115,6 +115,7 @@ eps = np.finfo(np.float32).eps.item()
 1 - conv lstm 2 branches for state action and image
 2 - conv network
 3 - drnn
+4 - convlstm1 -- convlstm with image and concatenate state input
 
 '''
 
@@ -279,10 +280,10 @@ def main():
 
             pn_optimizer.zero_grad()
             print("################################################### ", num_updates, " ####################################################\n")
-        if update_counter % 5 == 0:
-            print("in here")
+        if update_counter % 6 == 0:
             pn_optimizer.zero_grad()
             save_models(index)
+            update_counter = 1
             print("----------------------------Model Saved-------------------------------------")
 
 if __name__ == '__main__':
