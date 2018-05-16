@@ -232,10 +232,13 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type, use_ca):
                     sys.exit()
 
                 # print(out, out.max(1)[1])
-                m = Categorical(out)
-                action = m.sample()
-                action = out.max(1)[1]
+                # m = Categorical(out)
+                # action = m.sample()
+                # action = out.max(1)[1]
+
+                action = 1
                 velo = (action -2)  * 15
+
                 return_val = vrep.simxSetJointTargetVelocity(clientID, left_handle, velo, vrep.simx_opmode_oneshot)
                 return_val2 = vrep.simxSetJointTargetVelocity(clientID, right_handle, velo, vrep.simx_opmode_oneshot_wait)
 
@@ -243,13 +246,7 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type, use_ca):
         return list_of_images, collector
     else:
         sys.exit()
-'''
-print(out, out.max(1)[1])
-# m = Categorical(out)
-# action = m.sample()
-action = out.max(1)[1]
-velo = (action -2)  * 15
-'''
+
 def end(clientID):
     error_code =vrep.simxStopSimulation(clientID,vrep.simx_opmode_oneshot_wait)
     vrep.simxFinish(clientID)
