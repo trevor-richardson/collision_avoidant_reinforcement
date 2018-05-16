@@ -224,7 +224,7 @@ def update_policy_network(model, optimizer):
         counter = counter -1
     rewards = torch.Tensor(rewards)
     total_rew = rewards.sum()
-    rewards = (rewards - rewards.mean()) / (rewards.std() + eps)
+    # rewards = (rewards - rewards.mean()) / (rewards.std() + eps)
 
     for log_prob, reward in zip(model.saved_log_probs, rewards):
         policy_loss.append(-log_prob * reward)
@@ -280,7 +280,7 @@ def main():
 
             pn_optimizer.zero_grad()
             print("################################################### ", num_updates, " ####################################################\n")
-        if update_counter % 6 == 0:
+        if update_counter % 10 == 0:
             pn_optimizer.zero_grad()
             save_models(index)
             update_counter = 1

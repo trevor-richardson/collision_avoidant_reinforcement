@@ -37,14 +37,9 @@ class ConvLSTMPolicyNet(nn.Module):
 
         hx_0, cx_0 = self.convlstm_0(vid_x, (vid_states[0][0] ,vid_states[0][1]))
         hx_1, cx_1 = self.convlstm_1(hx_0, (vid_states[1][0] ,vid_states[1][1]))
-
         hx_2, cx_2 = self.convlstm_2(hx_1, (vid_states[2][0] ,vid_states[2][1]))
 
-        h_0, c_0 = self.LSTM_0(st_x, (st_states[0][0], st_states[0][1]))
-        h_1, c_1 = self.LSTM_1(h_0, (st_states[1][0], st_states[1][1]))
-        h_2, c_2 = self.LSTM_2(h_1, (st_states[2][0], st_states[2][1]))
-
-        flat = torch.cat((hx_2.view(hx_2.size(0), -1), h_2), dim=1)
+        flat = torch.cat((hx_2.view(hx_2.size(0), -1), st_x), dim=1)
 
         y = F.softmax(self.output(flat), dim=1)
 
