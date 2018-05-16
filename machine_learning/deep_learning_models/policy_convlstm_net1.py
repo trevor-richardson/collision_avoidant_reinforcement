@@ -5,10 +5,9 @@ import torch.nn.functional as F
 
 '''
 This network takes in the current state and predicts future collisions
+convlstm custom built with no lstm chain
 '''
-'''
-Test with only conv lstm test with only lstm --
-'''
+
 class ConvLSTMPolicyNet(nn.Module):
     def __init__(self, input_shp_vid,
                         input_shp_st,
@@ -26,6 +25,8 @@ class ConvLSTMPolicyNet(nn.Module):
 
         flat = self.convlstm_2.output_shape[0] * self.convlstm_2.output_shape[1] * self.convlstm_2.output_shape[2] + input_shp_st
 
+        self.normalize_state_layer = nn.Linear(input_shp_st, input_shp_st)
+
         self.output_shp = nn.Linear(flat , output_shp)
 
         self.saved_log_probs = []
@@ -39,7 +40,9 @@ class ConvLSTMPolicyNet(nn.Module):
         hx_1, cx_1 = self.convlstm_1(hx_0, (vid_states[1][0] ,vid_states[1][1]))
         hx_2, cx_2 = self.convlstm_2(hx_1, (vid_states[2][0] ,vid_states[2][1]))
 
-        flat = torch.cat((hx_2.view(hx_2.size(0), -1), st_x), dim=1)
+        h = F.tanh(self.normalize_state_layer(st_x))
+
+        flat = torch.cat((hx_2.view(hx_2.size(0), -1), h), dim=1)
 
         y = F.softmax(self.output(flat), dim=1)
 
