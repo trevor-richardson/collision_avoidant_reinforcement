@@ -206,7 +206,7 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type, use_ca):
                         else:
                             st_input = Variable(c.unsqueeze(0))
                     out = pn_model(st_input, vid_input)
-                    
+
                 elif input_type == 3:
                     if count == 0:
                         a = torch.from_numpy(list_of_images[-1].flatten()).float().cuda()
@@ -236,7 +236,7 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type, use_ca):
 
                 m = Categorical(out)
                 action = m.sample()
-                pn_model.saved_log_probs.append(m.log_prob(action))
+                pn_model.current_log_probs.append(m.log_prob(action))
                 velo = (action -2)  * 15
                 return_val = vrep.simxSetJointTargetVelocity(clientID, left_handle, velo, vrep.simx_opmode_oneshot)
                 return_val2 = vrep.simxSetJointTargetVelocity(clientID, right_handle, velo, vrep.simx_opmode_oneshot_wait)

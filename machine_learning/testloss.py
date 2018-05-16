@@ -202,7 +202,7 @@ def main():
     global dd_optimizer
     results_lst = []
     #populate list of models and order them
-    models_dir = base_dir + '/machine_learning/saved_models/conv_0/'
+    models_dir = base_dir + '/machine_learning/saved_models/convlstm_0_ca/'
     models_lst = [f for f in listdir(models_dir) if isfile(join(models_dir, f))]
     model_path = []
     for indx, element in enumerate(models_lst):

@@ -231,7 +231,7 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type, use_ca):
                     print("Error 12")
                     sys.exit()
 
-                print(out, out.max(1)[1])
+                # print(out, out.max(1)[1])
                 m = Categorical(out)
                 action = m.sample()
                 action = out.max(1)[1]

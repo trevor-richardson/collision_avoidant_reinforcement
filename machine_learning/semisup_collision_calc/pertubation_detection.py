@@ -127,24 +127,46 @@ def determine_reward_val(dd_model, pn_model, data, num_forward_passes):
                 return 1
     return 0
 
-def determine_reward_no_repeat(dd_model, pn_model, data, num_forward_passes):
+def determine_reward_no_repeat(dd_model, pn_model, data, num_forward_passes, only_hits):
     pdf_values, rew = evaluate_model(dd_model, num_forward_passes, data)
     low, high = calc_confidence_interval(rew)
     minimum = min(rew)
 
+
+
     for i in range(len(rew)):
         if rew[i] < high:
             rew[i] = 0
-            pn_model.rewards.append(rew[i])
         else:
             rew[i] += -minimum
             if rew[i] < 5:
                 rew[i] = 0
-                pn_model.rewards.append(rew[i])
             else:
-                rew[i] = 1
-                pn_model.rewards.append(-rew[i])
+                rew[i] = -1
 
-    pn_model.rewards.append(rew[-1])
-    print("\nMax norm of simulation: ", max(rew))
+    if only_hits:
+        if min(rew) == -1:
+            for index, element in enumerate(rew):
+                pn_model.rewards.append(element)
+                pn_model.saved_log_probs.append(pn_model.current_log_probs[index])
+                print(index, len(pn_model.current_log_probs))
+            pn_model.saved_log_probs.append(pn_model.current_log_probs[-1])
+            pn_model.rewards.append(rew[-1])
+            pn_model.reset_locations.append(len(pn_model.saved_log_probs) -1)
+        else:
+            for element in pn_model.current_log_probs:
+                element.detach_()
+    else:
+        for index, element in enumerate(rew):
+            pn_model.rewards.append(element)
+            pn_model.saved_log_probs.append(pn_model.current_log_probs[index])
+            print(index, len(pn_model.current_log_probs))
+        pn_model.saved_log_probs.append(pn_model.current_log_probs[-1])
+        pn_model.rewards.append(rew[-1])
+        pn_model.reset_locations.append(len(pn_model.saved_log_probs) -1)
+
+    pn_model.current_log_probs = []
+
+
+    print("\nMin norm of simulation: ", min(rew))
     print("")

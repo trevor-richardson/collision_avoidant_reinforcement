@@ -24,6 +24,7 @@ class Policy_Network(nn.Module):
         self.saved_log_probs = []
         self.rewards = []
         self.reset_locations = []
+        self.current_log_probs = []
 
     def forward(self, x):
 

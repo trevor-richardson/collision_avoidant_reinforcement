@@ -94,6 +94,8 @@ parser.add_argument('--update_size', type=int, default=100, metavar='N',
                     help='Number of trials a specific policy is run on before we train our models (default 100)')
 parser.add_argument('--use_ca', type=str2bool, nargs='?', default=True,
                     help='Whether or not to use pretrained collision anticpation model')
+parser.add_argument('--all_hit', type=str2bool, nargs='?', default=True,
+                    help='Whether or not I should use every simulation for training or just hit simulations')
 args = parser.parse_args()
 
 rgb_shape = (3, 64, 64)
@@ -115,6 +117,7 @@ eps = np.finfo(np.float32).eps.item()
 3 - drnn
 
 '''
+
 if args.use_ca:
     if args.policy_inp_type == 0:
         pn_inp = 3 * 64 * 64 * 2 + 10 + 10
@@ -230,6 +233,7 @@ def update_policy_network(model, optimizer):
     del model.rewards[:]
     del model.reset_locations[:]
     del model.saved_log_probs[:]
+    del model.current_log_probs[:]
     optimizer.zero_grad()
     return total_rew / len(rewards)
 
@@ -257,13 +261,13 @@ def main():
     for index in range(args.training_iterations):
 
         data = execute_exp(ca_model, pn_model, 0, 1, args.policy_inp_type, args.use_ca) #needs to return batch, necesary_arguments,
-        pn_model.reset_locations.append(len(pn_model.saved_log_probs) -1)
 
-        determine_reward_no_repeat(dd_model, pn_model, data[0], args.num_forward_passes)
+        determine_reward_no_repeat(dd_model, pn_model, data[0], args.num_forward_passes, args.all_hit)
+        print(len(pn_model.saved_log_probs), len(pn_model.rewards), len(pn_model.current_log_probs), pn_model.reset_locations)
         dd_optimizer.zero_grad()
         ca_optimizer.zero_grad()
 
-        if (index + 1) % 32 == 0:
+        if len(pn_model.reset_locations) == 32 :
             reward = update_policy_network(pn_model, pn_optimizer)
             with open("results.txt", "a") as myfile:
                 num_updates+=1
@@ -274,7 +278,7 @@ def main():
 
             pn_optimizer.zero_grad()
             print("################################################### ", num_updates, " ####################################################\n")
-        if (index + 1) % 320 == 0:
+        if len(pn_model.reset_locations) == 64:
             pn_optimizer.zero_grad()
             save_models(index)
             print("----------------------------Model Saved-------------------------------------")
