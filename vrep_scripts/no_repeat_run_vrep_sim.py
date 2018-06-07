@@ -161,8 +161,11 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type, use_ca):
                         else:
                             input_to_model = torch.cat([a, b, c])
                     else:
+                        # print(len(list_of_images))
+                        # np.save(str(count) + 'a', list_of_images[-1])
+                        # np.save(str(count) + 'b', list_of_images[-2])
                         a = torch.from_numpy(list_of_images[-1].flatten()).float().cuda()
-                        b = torch.from_numpy(list_of_images[-1].flatten()).float().cuda()
+                        b = torch.from_numpy(list_of_images[-2].flatten()).float().cuda()
                         c =torch.from_numpy(np.asarray(collector[-1]).astype('float')).float().cuda()
                         if use_ca:
                             d = torch.squeeze(output.data).float().cuda()

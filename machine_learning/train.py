@@ -50,7 +50,7 @@ parser = argparse.ArgumentParser(description='Reinforcement Learning Guided by D
 #training and testing args
 parser.add_argument('--pred_window', type=int, default=10, metavar='N',
                     help='How far in the future collision anticipation can guess')
-parser.add_argument('--policy_inp_type', type=int, default=2, metavar='N',
+parser.add_argument('--policy_inp_type', type=int, default=0, metavar='N',
                     help='Type of input for policy net')
 parser.add_argument('--training_iterations', type=int, default=30000, metavar='N',
                     help='Number of times I want to train a reinforcement learning model')
@@ -96,6 +96,8 @@ parser.add_argument('--use_ca', type=str2bool, nargs='?', default=True,
                     help='Whether or not to use pretrained collision anticpation model')
 parser.add_argument('--all_hit', type=str2bool, nargs='?', default=True,
                     help='Whether or not I should use every simulation for training or just hit simulations')
+parser.add_argument('--miss_pos_rew', type=str2bool, nargs='?', default=False,
+                    help='If true set simulations with no hit to be all positive one')
 args = parser.parse_args()
 
 rgb_shape = (3, 64, 64)
@@ -224,7 +226,6 @@ def update_policy_network(model, optimizer):
         counter = counter -1
     rewards = torch.Tensor(rewards)
     total_rew = rewards.sum()
-    # rewards = (rewards - rewards.mean()) / (rewards.std() + eps)
 
     for log_prob, reward in zip(model.saved_log_probs, rewards):
         policy_loss.append(-log_prob * reward)
@@ -264,12 +265,13 @@ def main():
 
         data = execute_exp(ca_model, pn_model, 0, 1, args.policy_inp_type, args.use_ca) #needs to return batch, necesary_arguments,
 
-        determine_reward_no_repeat(dd_model, pn_model, data[0], args.num_forward_passes, args.all_hit)
+        determine_reward_no_repeat(dd_model, pn_model, data[0], args.num_forward_passes, args.all_hit, args.miss_pos_rew)
         dd_optimizer.zero_grad()
         ca_optimizer.zero_grad()
 
-        if len(pn_model.reset_locations) == 32 :
+        if len(pn_model.reset_locations) == 3 :
             update_counter+=1
+            print(pn_model.rewards)
             reward = update_policy_network(pn_model, pn_optimizer)
             with open("results.txt", "a") as myfile:
                 num_updates+=1

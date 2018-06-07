@@ -2,7 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-'''Simple Policy Network using convolutional layers to analyze image input'''
+'''Simple Policy Network using convolutional layers to analyze image input
+and linear layers for state input'''
 
 class ConvPolicy_Network(nn.Module):
     def __init__(self, input_shp_st,
@@ -17,7 +18,6 @@ class ConvPolicy_Network(nn.Module):
                     output_shp):
         super(ConvPolicy_Network, self).__init__()
         print("Initializing Policy Network")
-
 
         #Analyzes image information
         self.img_inp = inp_img_shp
@@ -58,9 +58,9 @@ class ConvPolicy_Network(nn.Module):
         himg_1 = self.conv1(himg_0)
         himg_2 = self.conv2(himg_1)
 
-        hst_0 = F.sigmoid(self.lin_0(x_st))
-        hst_1 = F.sigmoid(self.lin_1(hst_0))
-        hst_2 = F.sigmoid(self.lin_2(hst_1))
+        hst_0 = F.relu(self.lin_0(x_st))
+        hst_1 = F.relu(self.lin_1(hst_0))
+        hst_2 = F.relu(self.lin_2(hst_1))
 
         flat = torch.cat((himg_2.view(himg_2.size(0), -1), hst_2), dim=1)
         y = F.softmax(self.output(flat), dim=1)

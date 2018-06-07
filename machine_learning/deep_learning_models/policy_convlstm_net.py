@@ -5,10 +5,11 @@ import torch.nn.functional as F
 
 '''
 This network takes in the current state and predicts future collisions
+Uses - custom built convLSTM cells for image input
+Pytorch LSTM cells for state input
+Predicts action distribution Pi
 '''
-'''
-Test with only conv lstm test with only lstm --
-'''
+
 class ConvLSTMPolicyNet(nn.Module):
     def __init__(self, input_shp_vid,
                         input_shp_st,
@@ -65,6 +66,5 @@ class ConvLSTMPolicyNet(nn.Module):
         h_out = F.tanh(self.fcn1(dropped))
 
         y = F.softmax(self.fcn2(h_out), dim=1) #regress the outputs
-
 
         return y, [[hx_0, cx_0], [hx_1, cx_1], [hx_2, cx_2]], [[h_0, c_0], [h_1, c_1], [h_2, c_2]]

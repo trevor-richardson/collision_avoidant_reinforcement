@@ -160,24 +160,19 @@ h_out = 50
 ca_model = AnticipationNet(rgb_shape, dd_inp_shape, h_0, h_1, h_2, h_out, (args.no_filters_0,
     args.no_filters_1, args.no_filters_2), (args.kernel_0, args.kernel_0), args.strides, args.pred_window,
     padding=0, dropout_rte=args.drop_rte)
-dd_model = Deep_Dynamics(dd_inp_shape, 60, 40, 30, 20, 20, dd_output_shape, args.drop_rte)
 
 if torch.cuda.is_available():
     print("Using GPU acceleration")
-    dd_model.cuda()
     ca_model.cuda()
     pn_model.cuda()
 
 ca_optimizer = torch.optim.Adam(ca_model.parameters(), lr=args.lr)
 pn_optimizer = torch.optim.Adam(pn_model.parameters(), lr=args.lr)
-dd_optimizer = torch.optim.Adam(dd_model.parameters(), lr=args.lr)
 
 def load_models(iteration):
     global ca_model
-    global dd_model
     try:
         ca_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/ca_model/780.5778702075141.pth"))
-        dd_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/dd_model/0.11827140841.pth"))
     except ValueError:
         print("Not a valid model to load")
         sys.exit()
@@ -196,8 +191,6 @@ def main():
     global pn_optimizer
     global ca_model
     global ca_optimizer
-    global dd_model
-    global dd_optimizer
     results_lst = []
 
     for index in range(10):
@@ -206,8 +199,7 @@ def main():
         count = 0
 
         for inner_index in range(args.validation_iterations):
-            states = execute_exp(ca_model, pn_model, 0, 1, args.policy_inp_type, args.use_ca)
-            collision_detector = determine_reward_val(dd_model, pn_model, states[0], args.num_forward_passes)
+            state, collision_detector = execute_exp(ca_model, pn_model, 0, 1, args.policy_inp_type, args.use_ca, True)
 
             if collision_detector > 0:
                 print("Hit")
@@ -215,7 +207,6 @@ def main():
             else:
                 print("Miss")
 
-            dd_optimizer.zero_grad()
             ca_optimizer.zero_grad()
             pn_optimizer.zero_grad()
             del(pn_model.saved_log_probs[:])

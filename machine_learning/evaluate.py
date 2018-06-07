@@ -10,6 +10,16 @@ from os.path import isfile, join
 from os import listdir
 
 import torch
+import torch._utils
+try:
+    torch._utils._rebuild_tensor_v2
+except AttributeError:
+    def _rebuild_tensor_v2(storage, storage_offset, size, stride, requires_grad, backward_hooks):
+        tensor = torch._utils._rebuild_tensor(storage, storage_offset, size, stride)
+        tensor.requires_grad = requires_grad
+        tensor._backward_hooks = backward_hooks
+        return tensor
+    torch._utils._rebuild_tensor_v2 = _rebuild_tensor_v2
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
@@ -168,12 +178,12 @@ def load_models(iteration):
     global pn_model
     try:
         ca_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/ca_model/780.5778702075141.pth"))
-        pn_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/pn" + str(iteration) + ".pth"))
+        pn_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/newrew_conv_0_noca/pn" + str(iteration) + ".pth"))
     except ValueError:
         print("Not a valid model to load")
         sys.exit()
 
-load_models(1727)
+load_models(15296)
 
 def main():
     global pn_model
@@ -183,7 +193,7 @@ def main():
 
     for index in range(args.training_iterations):
         print("####################################################################################################################\n")
-        execute_exp(ca_model, pn_model, 0, 1, args.policy_inp_type, args.use_ca)
+        execute_exp(ca_model, pn_model, 0, 1, args.policy_inp_type, args.use_ca, False)
         ca_optimizer.zero_grad()
         pn_optimizer.zero_grad()
         del(pn_model.saved_log_probs[:])

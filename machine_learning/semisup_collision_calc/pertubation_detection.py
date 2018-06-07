@@ -127,7 +127,7 @@ def determine_reward_val(dd_model, pn_model, data, num_forward_passes):
                 return 1
     return 0
 
-def determine_reward_no_repeat(dd_model, pn_model, data, num_forward_passes, only_hits):
+def determine_reward_no_repeat(dd_model, pn_model, data, num_forward_passes, only_hits, pos_for_miss):
     pdf_values, rew = evaluate_model(dd_model, num_forward_passes, data)
     low, high = calc_confidence_interval(rew)
     minimum = min(rew)
@@ -141,6 +141,14 @@ def determine_reward_no_repeat(dd_model, pn_model, data, num_forward_passes, onl
             if rew[i] < 5:
                 rew[i] = 0
             else:
+                rew[i] = -1
+
+    if pos_for_miss:
+        if min(rew) == 0:
+            for i in range(len(rew)):
+                rew[i] = 1
+        else:
+            for i in range(len(rew)):
                 rew[i] = -1
 
     if only_hits:

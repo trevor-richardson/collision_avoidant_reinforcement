@@ -10,6 +10,15 @@ from os.path import isfile, join
 from os import listdir
 
 import torch
+try:
+    torch._utils._rebuild_tensor_v2
+except AttributeError:
+    def _rebuild_tensor_v2(storage, storage_offset, size, stride, requires_grad, backward_hooks):
+        tensor = torch._utils._rebuild_tensor(storage, storage_offset, size, stride)
+        tensor.requires_grad = requires_grad
+        tensor._backward_hooks = backward_hooks
+        return tensor
+    torch._utils._rebuild_tensor_v2 = _rebuild_tensor_v2
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
@@ -202,7 +211,7 @@ def main():
     global dd_optimizer
     results_lst = []
     #populate list of models and order them
-    models_dir = base_dir + '/machine_learning/saved_models/convlstm_0_ca/'
+    models_dir = base_dir + '/machine_learning/saved_models/newrew_conv_0_noca/'
     models_lst = [f for f in listdir(models_dir) if isfile(join(models_dir, f))]
     model_path = []
     for indx, element in enumerate(models_lst):
@@ -221,7 +230,7 @@ def main():
         count = 0
 
         for inner_index in range(args.validation_iterations):
-            states = execute_exp(ca_model, pn_model, 0, 1, args.policy_inp_type, args.use_ca)
+            states, cal = execute_exp(ca_model, pn_model, 0, 1, args.policy_inp_type, args.use_ca, False)
             collision_detector = determine_reward_val(dd_model, pn_model, states[0], args.num_forward_passes)
             if collision_detector > 0:
                 print("Hit")
