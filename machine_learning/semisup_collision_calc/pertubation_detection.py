@@ -44,7 +44,7 @@ def evaluate_model(model, num_forward_passes, single_vid):
         input_to_model = Variable(input_to_model.float(), volatile=True)
         for inner_index in range(num_forward_passes):
             lst.append((model(input_to_model).cpu().data.numpy()))
-        n1, n2 = calc_norm_2(np.asarray(lst), single_vid[index + 1, :9])
+        n1, n2 = calc_norm_2(np.asarray(lst), single_vid[index + 1, :12])
         rew.append(n2)
         del(lst[:])
     return rew
@@ -123,6 +123,12 @@ def determine_reward_val(dd_model, pn_model, data, num_forward_passes):
             else:
                 return 1
     return 0
+
+
+def dd_test(dd_model, num_forward_passes, data):
+    rew = evaluate_model(dd_model, num_forward_passes, data)
+    return rew
+
 
 def determine_reward_no_repeat(dd_model, pn_model, data, num_forward_passes, only_hits, pos_for_miss):
     rew = evaluate_model(dd_model, num_forward_passes, data)

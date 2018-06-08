@@ -209,7 +209,6 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type, use_ca):
                         else:
                             d = torch.squeeze(output.data).float()
                         st_input = Variable(torch.cat([c, d]).unsqueeze(0))
-
                     else:
                         st_input = Variable(c.unsqueeze(0))
                     out, pn_vidstates, pn_ststates = pn_model(vid_input, st_input, pn_vidstates, pn_ststates)
