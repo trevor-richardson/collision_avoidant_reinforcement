@@ -44,11 +44,10 @@ def evaluate_model(model, num_forward_passes, single_vid):
         input_to_model = Variable(input_to_model.float(), volatile=True)
         for inner_index in range(num_forward_passes):
             lst.append((model(input_to_model).cpu().data.numpy()))
-        rewards.append(calc_statistics(np.asarray(lst), single_vid[index + 1, :9]))
         n1, n2 = calc_norm_2(np.asarray(lst), single_vid[index + 1, :9])
         rew.append(n2)
         del(lst[:])
-    return rewards, rew
+    return rew
 
 
 '''Calculate "probability kinda" of hit'''
@@ -80,7 +79,7 @@ def calc_confidence_interval(data, confidence=0.90):
 
 def determine_reward(dd_model, pn_model, data, num_forward_passes):
 
-    pdf_values, rew = evaluate_model(dd_model, num_forward_passes, data)
+    rew = evaluate_model(dd_model, num_forward_passes, data)
     low, high = calc_confidence_interval(rew)
     minimum = min(rew)
 
@@ -107,12 +106,10 @@ def determine_reward(dd_model, pn_model, data, num_forward_passes):
         else:
             pn_model.rewards.append(-max(rew[indx*size_split:((indx+1) * size_split)]))
 
-    print("\nMax norm of simulation: ", max(rew))
-    print("")
 
 def determine_reward_val(dd_model, pn_model, data, num_forward_passes):
 
-    pdf_values, rew = evaluate_model(dd_model, num_forward_passes, data)
+    rew = evaluate_model(dd_model, num_forward_passes, data)
     low, high = calc_confidence_interval(rew)
     minimum = min(rew)
 
@@ -128,10 +125,9 @@ def determine_reward_val(dd_model, pn_model, data, num_forward_passes):
     return 0
 
 def determine_reward_no_repeat(dd_model, pn_model, data, num_forward_passes, only_hits, pos_for_miss):
-    pdf_values, rew = evaluate_model(dd_model, num_forward_passes, data)
+    rew = evaluate_model(dd_model, num_forward_passes, data)
     low, high = calc_confidence_interval(rew)
     minimum = min(rew)
-
 
     for i in range(len(rew)):
         if rew[i] < high:
@@ -171,7 +167,3 @@ def determine_reward_no_repeat(dd_model, pn_model, data, num_forward_passes, onl
         pn_model.reset_locations.append(len(pn_model.saved_log_probs) -1)
 
     pn_model.current_log_probs = []
-
-
-    print("\nMin norm of simulation: ", min(rew))
-    print("")

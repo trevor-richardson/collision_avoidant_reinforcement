@@ -201,7 +201,7 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type, use_ca):
                         vid_input = Variable(pn_vid.float().cuda())
                         c = torch.from_numpy(np.asarray(collector[-1]).astype('float')).float().cuda()
                     else:
-                        vid_input = Variable(pn_vid.float()
+                        vid_input = Variable(pn_vid.float())
                         c = torch.from_numpy(np.asarray(collector[-1]).astype('float')).float()
                     if use_ca:
                         if torch.cuda.is_available():

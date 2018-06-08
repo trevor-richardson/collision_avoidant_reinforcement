@@ -50,7 +50,7 @@ parser = argparse.ArgumentParser(description='Reinforcement Learning Guided by D
 #training and testing args
 parser.add_argument('--pred_window', type=int, default=10, metavar='N',
                     help='How far in the future collision anticipation can guess')
-parser.add_argument('--policy_inp_type', type=int, default=0, metavar='N',
+parser.add_argument('--policy_inp_type', type=int, default=2, metavar='N',
                     help='Type of input for policy net')
 parser.add_argument('--training_iterations', type=int, default=30000, metavar='N',
                     help='Number of times I want to train a reinforcement learning model')
@@ -58,8 +58,6 @@ parser.add_argument('--num_forward_passes', type=int, default=32, metavar='N',
                     help='Number of forward passes for dropout at test time for multivariate_normal pdf calc')
 parser.add_argument('--exp_iteration', type=int, default=64, metavar='N',
                     help='Batch size default size is 64')
-parser.add_argument('--batch_size', type=int, default=10, metavar='N',
-                    help='size_of batch (default 10)')
 parser.add_argument('--no_filters_0', type=int, default=40, metavar='N',
                     help='Number of activation maps to in layer 0 (default 40)')
 parser.add_argument('--no_filters_1', type=int, default=30, metavar='N',
@@ -86,11 +84,9 @@ parser.add_argument('--lr', type=float, default=.0001,
                     help='The learning rate used for my Adam optimizer (default: .0001)')
 parser.add_argument('--strides', type=int, default=2, metavar='N',
                     help='Strides for the convolutions in the convlstm layers (default 2)')
-parser.add_argument('--drop_rte', type=float, default=.3, metavar='N',
-                    help='dropout rate (default .3)')
 parser.add_argument('--gamma', type=float, default=.99, metavar='G',
-                    help='discount factor (default: 0.999)')
-parser.add_argument('--update_size', type=int, default=100, metavar='N',
+                    help='discount factor (default: 0.99)')
+parser.add_argument('--update_size', type=int, default=32, metavar='N',
                     help='Number of trials a specific policy is run on before we train our models (default 100)')
 parser.add_argument('--use_ca', type=str2bool, nargs='?', default=True,
                     help='Whether or not to use pretrained collision anticpation model')
@@ -98,6 +94,8 @@ parser.add_argument('--all_hit', type=str2bool, nargs='?', default=True,
                     help='Whether or not I should use every simulation for training or just hit simulations')
 parser.add_argument('--miss_pos_rew', type=str2bool, nargs='?', default=False,
                     help='If true set simulations with no hit to be all positive one')
+parser.add_argument('--exp_num', type=int, default=0, metavar='N',
+                    help='This is to seperate models saved and the results from training')
 args = parser.parse_args()
 
 rgb_shape = (3, 64, 64)
@@ -164,9 +162,9 @@ else:
 
 ca_model = AnticipationNet(rgb_shape, dd_inp_shape, h_0, h_1, h_2, h_out, (args.no_filters_0,
     args.no_filters_1, args.no_filters_2), (args.kernel_0, args.kernel_0), args.strides, args.pred_window,
-    padding=0, dropout_rte=args.drop_rte)
+    padding=0)
 
-dd_model = Deep_Dynamics(dd_inp_shape, 60, 40, 30, 20, 20, dd_output_shape, args.drop_rte)
+dd_model = Deep_Dynamics(dd_inp_shape, 60, 40, 30, 20, 20, dd_output_shape)
 
 if torch.cuda.is_available():
     print("Using GPU acceleration")
@@ -179,7 +177,7 @@ dd_optimizer = torch.optim.Adam(dd_model.parameters(), lr=args.lr)
 pn_optimizer = torch.optim.Adam(pn_model.parameters(), lr=args.lr)
 
 def save_models(iteration):
-    torch.save(pn_model.state_dict(), base_dir + '/machine_learning/saved_models/pn' + str(iteration) + '.pth')
+    torch.save(pn_model.state_dict(), base_dir + '/machine_learning/saved_models/' + str(args.exp_num) + 'pn' + str(iteration) + '.pth')
 
 def load_models(iteration):
     global dd_model
@@ -252,6 +250,10 @@ def main():
     global pn_optimizer
     num_updates = 0
     update_counter = 1
+    index = 0
+    count = 0
+    count_list = []
+
 
     '''The following Collision Anticipation Network is a
         mentor for the Policy Network. It is pretrained, and no grads required'''
@@ -260,33 +262,29 @@ def main():
     for param in ca_model.parameters():
         param.requires_grad=False
 
-    print("################################################### ", num_updates, " ####################################################\n")
-    for index in range(args.training_iterations):
+    while index < args.training_iterations:
 
         data = execute_exp(ca_model, pn_model, 0, 1, args.policy_inp_type, args.use_ca) #needs to return batch, necesary_arguments,
-
         determine_reward_no_repeat(dd_model, pn_model, data[0], args.num_forward_passes, args.all_hit, args.miss_pos_rew)
         dd_optimizer.zero_grad()
         ca_optimizer.zero_grad()
 
-        if len(pn_model.reset_locations) == 3 :
+        if len(pn_model.reset_locations) == args.update_size:
             update_counter+=1
-            print(pn_model.rewards)
             reward = update_policy_network(pn_model, pn_optimizer)
-            with open("results.txt", "a") as myfile:
-                num_updates+=1
-                myfile.write(str(num_updates))
-                myfile.write(",")
-                myfile.write(str(reward))
-                myfile.write("\n")
+            index +=1
 
             pn_optimizer.zero_grad()
-            print("################################################### ", num_updates, " ####################################################\n")
-        if update_counter % 10 == 0:
             pn_optimizer.zero_grad()
             save_models(index)
             update_counter = 1
-            print("----------------------------Model Saved-------------------------------------")
+            count_list.append(count)
+
+            print(str(args.exp_num) + "**********************", index ,"**********************")
+            print("Iterations from last update ", count_list)
+            count = 0
+        count+=1
+    np.save(str(args.exp_num) + "tbtwnupdate", np.asarray(count_list))
 
 if __name__ == '__main__':
     main()
