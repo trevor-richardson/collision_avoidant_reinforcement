@@ -218,10 +218,8 @@ mypath = base_dir + '/machine_learning/saved_models/test_dd/'
 onlyfiles = [f for f in listdir(mypath) if isfile(join(mypath, f))]
 paths = []
 
-
 for element in onlyfiles:
     paths.append(base_dir + '/machine_learning/saved_models/test_dd/' + element)
-
 
 def main():
     global pn_model
@@ -245,10 +243,10 @@ def main():
 
             if collision_detector > 0:
                 print("Hit")
-                results_lst.append([[1], [rew]])
+                results_lst.append([1, *rew])
             else:
                 print("Miss")
-                results_lst.append([[0], [rew]])
+                results_lst.append([0, *rew])
 
             ca_optimizer.zero_grad()
             pn_optimizer.zero_grad()
@@ -258,8 +256,8 @@ def main():
             print(results_lst[-1])
             print("Max DD value ", max(rew))
 
-
-        np.save(path, np.asarray(results_lst))
+        f = path.split('/')[-1]
+        np.save(f, np.asarray(results_lst))
 
 
 if __name__ == '__main__':
