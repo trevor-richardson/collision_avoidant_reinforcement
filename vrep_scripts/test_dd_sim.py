@@ -26,8 +26,7 @@ def start():
     error_code =vrep.simxStartSimulation(clientID,vrep.simx_opmode_blocking)
     return clientID, error_code
 
-
-def collectImageData(ca_model, pn_model, clientID, states, input_type, use_ca):
+def collectImageData(clientID):
 
     list_of_images = []
 
@@ -45,7 +44,7 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type, use_ca):
         count = 0
         action = 2
         inference_counter = 0
-        steps = 5
+        steps = 50
         delay=0
 
         while (vrep.simxGetConnectionId(clientID)!=-1 and count < steps):
@@ -90,55 +89,28 @@ def detectCollisionSignal(clientID):
     detector = 0
     collision_str = "collision_signal"
     detector = vrep.simxGetIntegerSignal(clientID, collision_str, vrep.simx_opmode_oneshot_wait)
-    start = time.time()
-    while(time.time() < start +1):
-        pass
 
     if detector[1] == 1:
         return 1
     else:
         return 0
 
-
-def single_simulation_noca(pn_model, n_iter, txt_file_counter, inp_type, get_collision):
-
-    states = None
-    
-    clientID, start_error = start()
-    image_array, state_array = collectImageData(None, pn_model, clientID, states, inp_type, False) #store these images
-    if get_collision:
-        col_sig = detectCollisionSignal(clientID)
-    else:
-        col_sig = None
-    end_error = end(clientID)
-    state = np.asarray(state_array).astype(float)
-
-    return state, col_sig
-
-def single_simulation(ca_model, pn_model, n_iter, txt_file_counter, inp_type, get_collision):
+def single_simulation():
 
     states = None
     clientID, start_error = start()
-    image_array, state_array = collectImageData(ca_model, pn_model, clientID, states, inp_type, True) #store these images
-    if get_collision:
-        col_sig = detectCollisionSignal(clientID)
-    else:
-        col_sig = None
+    image_array, state_array = collectImageData(clientID) #store these images
+    col_sig = detectCollisionSignal(clientID)
     end_error = end(clientID)
     state = np.asarray(state_array).astype(float)
 
     return state, col_sig
 
 
-def execute_exp(ca_model, pn_model, iter_start, iter_end, input_type, use_ca, get_collision):
+def execute_exp():
     txt_file_counter = 1
     lst = []
-
-    for current_iteration in range(iter_start, iter_end):
-        if use_ca:
-            states, col_sig = single_simulation(ca_model, pn_model, current_iteration, txt_file_counter, input_type, get_collision)
-        else:
-            states, col_sig = single_simulation_noca(pn_model, current_iteration, txt_file_counter, input_type, get_collision)
-        lst.append(states)
+    states, col_sig = single_simulation()
+    lst.append(states)
 
     return lst, col_sig

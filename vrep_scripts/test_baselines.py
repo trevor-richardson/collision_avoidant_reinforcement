@@ -94,9 +94,7 @@ def detectCollisionSignal(clientID):
     detector = 0
     collision_str = "collision_signal"
     detector = vrep.simxGetIntegerSignal(clientID, collision_str, vrep.simx_opmode_oneshot_wait)
-    start = time.time()
-    while(time.time() < start +1):
-        pass
+
     if detector[1] == 1:
         return 1
     else:
