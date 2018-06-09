@@ -130,31 +130,31 @@ def dd_test(dd_model, num_forward_passes, data):
     return rew
 
 
-def determine_reward_no_repeat(dd_model, pn_model, data, num_forward_passes, only_hits, pos_for_miss):
+def determine_reward_no_repeat(dd_model, pn_model, data, num_forward_passes, only_hits):
     rew = evaluate_model(dd_model, num_forward_passes, data)
     low, high = calc_confidence_interval(rew)
     minimum = min(rew)
+    print(rew)
+    print(max(rew))
 
     for i in range(len(rew)):
-        if rew[i] < high:
+        if rew[i] > 5000:
+            rew[i] = -1
+        else:
             rew[i] = 0
-        else:
-            rew[i] += -minimum
-            if rew[i] < 5:
-                rew[i] = 0
-            else:
-                rew[i] = -1
 
-    if pos_for_miss:
-        if min(rew) == 0:
-            for i in range(len(rew)):
-                rew[i] = 1
-        else:
-            for i in range(len(rew)):
-                rew[i] = -1
+        # if rew[i] < high:
+        #     rew[i] = 0
+        # else:
+        #     rew[i] += -minimum
+        #     if rew[i] < 5:
+        #         rew[i] = 0
+        #     else:
+        #         rew[i] = -1
 
     if only_hits:
         if min(rew) == -1:
+            print("\n\n We got a hit")
             for index, element in enumerate(rew):
                 pn_model.rewards.append(element)
                 pn_model.saved_log_probs.append(pn_model.current_log_probs[index])
@@ -162,14 +162,19 @@ def determine_reward_no_repeat(dd_model, pn_model, data, num_forward_passes, onl
             pn_model.rewards.append(rew[-1])
             pn_model.reset_locations.append(len(pn_model.saved_log_probs) -1)
         else:
+            print("\n\n we got a miss")
             for element in pn_model.current_log_probs:
                 element.detach_()
     else:
+        if min(rew) == 0:
+            for i in range(len(rew)):
+                rew[i] = 1
+        else:
+            for i in range(len(rew)):
+                rew[i] = -1
         for index, element in enumerate(rew):
             pn_model.rewards.append(element)
             pn_model.saved_log_probs.append(pn_model.current_log_probs[index])
         pn_model.saved_log_probs.append(pn_model.current_log_probs[-1])
         pn_model.rewards.append(rew[-1])
         pn_model.reset_locations.append(len(pn_model.saved_log_probs) -1)
-
-    pn_model.current_log_probs = []

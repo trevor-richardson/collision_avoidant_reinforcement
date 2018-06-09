@@ -32,8 +32,19 @@ from collision_avoidance import AnticipationNet
 from policy_convlstm_net import ConvLSTMPolicyNet
 from policy_conv_net import ConvPolicy_Network
 from policy_lstm_network import Policy_LSTMNetwork
-from no_repeat_run_vrep_sim import execute_exp
+from train_models_run_vrep import execute_exp
 from pertubation_detection import *
+
+import torch._utils
+try:
+    torch._utils._rebuild_tensor_v2
+except AttributeError:
+    def _rebuild_tensor_v2(storage, storage_offset, size, stride, requires_grad, backward_hooks):
+        tensor = torch._utils._rebuild_tensor(storage, storage_offset, size, stride)
+        tensor.requires_grad = requires_grad
+        tensor._backward_hooks = backward_hooks
+        return tensor
+    torch._utils._rebuild_tensor_v2 = _rebuild_tensor_v2
 
 ''' Global Variables of Interest For Configurability '''
 
@@ -54,7 +65,7 @@ parser.add_argument('--policy_inp_type', type=int, default=2, metavar='N',
                     help='Type of input for policy net')
 parser.add_argument('--training_iterations', type=int, default=30000, metavar='N',
                     help='Number of times I want to train a reinforcement learning model')
-parser.add_argument('--num_forward_passes', type=int, default=32, metavar='N',
+parser.add_argument('--num_forward_passes', type=int, default=64, metavar='N',
                     help='Number of forward passes for dropout at test time for multivariate_normal pdf calc')
 parser.add_argument('--exp_iteration', type=int, default=64, metavar='N',
                     help='Batch size default size is 64')
@@ -92,15 +103,13 @@ parser.add_argument('--use_ca', type=str2bool, nargs='?', default=True,
                     help='Whether or not to use pretrained collision anticpation model')
 parser.add_argument('--all_hit', type=str2bool, nargs='?', default=True,
                     help='Whether or not I should use every simulation for training or just hit simulations')
-parser.add_argument('--miss_pos_rew', type=str2bool, nargs='?', default=False,
-                    help='If true set simulations with no hit to be all positive one')
 parser.add_argument('--exp_num', type=int, default=0, metavar='N',
                     help='This is to seperate models saved and the results from training')
 args = parser.parse_args()
 
 rgb_shape = (3, 64, 64)
-dd_inp_shape = (10)
-dd_output_shape = (9)
+dd_inp_shape = (13)
+dd_output_shape = (12)
 ca_output_shape = 10
 h_0 = 15
 h_1 = 15
@@ -110,18 +119,16 @@ pn_output = 5
 eps = np.finfo(np.float32).eps.item()
 
 '''
-
 0 - fcn
 1 - conv lstm 2 branches for state action and image
 2 - conv network
 3 - drnn
 4 - convlstm1 -- convlstm with image and concatenate state input
-
 '''
 
 if args.use_ca:
     if args.policy_inp_type == 0:
-        pn_inp = 3 * 64 * 64 * 2 + 10 + 10
+        pn_inp = 3 * 64 * 64 * 2 + 10 + 13
         pn_model = Policy_Network(pn_inp, args.hidden_0, args.hidden_1, args.hidden_2, args.hidden_3, pn_output)
     elif args.policy_inp_type == 1:
         st_shp = (dd_inp_shape+args.pred_window)
@@ -134,14 +141,14 @@ if args.use_ca:
         pn_model = ConvPolicy_Network(st_shp, (6, 64, 64), args.no_filters_0, args.no_filters_1,
             args.no_filters_2, 5, args.hidden_0, args.hidden_1, args.hidden_2, pn_output)
     elif args.policy_inp_type == 3:
-        pn_inp = 3 * 64 * 64 * 2 + 10 + 10
+        pn_inp = 3 * 64 * 64 * 2 + 10 + 13
         pn_model = Policy_LSTMNetwork(pn_inp, args.hidden_0, args.hidden_1, args.hidden_2, pn_output)
     else:
         print("Enter a correct input type")
         sys.exit()
 else:
     if args.policy_inp_type == 0:
-        pn_inp = 3 * 64 * 64 * 2 + 10
+        pn_inp = 3 * 64 * 64 * 2 + 13
         pn_model = Policy_Network(pn_inp, args.hidden_0, args.hidden_1, args.hidden_2, args.hidden_3, pn_output)
     elif args.policy_inp_type == 1:
         st_shp = (dd_inp_shape)
@@ -154,7 +161,7 @@ else:
         pn_model = ConvPolicy_Network(st_shp, (6, 64, 64), args.no_filters_0, args.no_filters_1,
             args.no_filters_2, 5, args.hidden_0, args.hidden_1, args.hidden_2, pn_output)
     elif args.policy_inp_type == 3:
-        pn_inp = 3 * 64 * 64 * 2 + 10
+        pn_inp = 3 * 64 * 64 * 2 + 13
         pn_model = Policy_LSTMNetwork(pn_inp, args.hidden_0, args.hidden_1, args.hidden_2, pn_output)
     else:
         print("Enter a correct input type")
@@ -194,7 +201,7 @@ def load_models(iteration):
 def load_dd_model():
     global dd_model
     try:
-        dd_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/dd_model/0.11827140841.pth"))
+        dd_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/dd_model/0.23850592340511315.pth"))
     except ValueError:
         print("Not a valid model to load")
         sys.exit()
@@ -235,9 +242,9 @@ def update_policy_network(model, optimizer):
     del model.saved_log_probs[:]
     del model.current_log_probs[:]
     optimizer.zero_grad()
-    return total_rew / len(rewards)
+    return total_rew
 
-load_ca_model()
+# load_ca_model()
 load_dd_model()
 # load_models(3200)
 
@@ -254,7 +261,6 @@ def main():
     count = 0
     count_list = []
 
-
     '''The following Collision Anticipation Network is a
         mentor for the Policy Network. It is pretrained, and no grads required'''
 
@@ -265,7 +271,7 @@ def main():
     while index < args.training_iterations:
 
         data = execute_exp(ca_model, pn_model, 0, 1, args.policy_inp_type, args.use_ca) #needs to return batch, necesary_arguments,
-        determine_reward_no_repeat(dd_model, pn_model, data[0], args.num_forward_passes, args.all_hit, args.miss_pos_rew)
+        determine_reward_no_repeat(dd_model, pn_model, data[0], args.num_forward_passes, args.all_hit)
         dd_optimizer.zero_grad()
         ca_optimizer.zero_grad()
 
@@ -278,10 +284,13 @@ def main():
             pn_optimizer.zero_grad()
             save_models(index)
             update_counter = 1
-            count_list.append(count)
+            if args.all_hit:
+                count_list.append(count)
+            else:
+                count_list.append(reward)
 
             print(str(args.exp_num) + "**********************", index ,"**********************")
-            print("Iterations from last update ", count_list)
+            print("Iterations from last update or total reward ", count_list)
             count = 0
         count+=1
     np.save(str(args.exp_num) + "tbtwnupdate", np.asarray(count_list))

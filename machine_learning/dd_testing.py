@@ -96,17 +96,17 @@ for element in onlyfiles:
 def main():
     global dd_model
     global dd_optimizer
-    results_lst = []
 
     for path in paths:
         print("####################################################################################################################\n")
-        results = []
+        results_lst = []
         load_dd_model(path)
         for inner_index in range(args.validation_iterations):
 
             state, collision_detector = execute_exp()
             rew = dd_test(dd_model, args.num_forward_passes, state[0])
             dd_optimizer.zero_grad()
+
             if collision_detector > 0:
                 print("Hit")
                 results_lst.append([1, *rew])

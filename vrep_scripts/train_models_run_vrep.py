@@ -83,7 +83,7 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type, use_ca):
                 ret_code, pos = vrep.simxGetObjectPosition(clientID, base_handle, -1, vrep.simx_opmode_oneshot)
                 ret_code, velo, angle_velo = vrep.simxGetObjectVelocity(clientID, base_handle, vrep.simx_opmode_oneshot)
                 ret_code, euler_angles = vrep.simxGetObjectOrientation(clientID, base_handle, -1, vrep.simx_opmode_buffer)
-                collector.append([pos[0], pos[1], pos[2], velo[0], velo[1], velo[2], euler_angles[0], euler_angles[1], euler_angles[2], action])
+                collector.append([pos[0], pos[1], pos[2], velo[0], velo[1], velo[2], angle_velo[0], angle_velo[1], angle_velo[2], euler_angles[0], euler_angles[1], euler_angles[2], action])
                 if use_ca:
                     torch_vid = torch.from_numpy(np.transpose(np.expand_dims((list_of_images[-1]).astype('float'),axis=0), (0, 3, 1, 2)))
                     torch_st = torch.from_numpy(np.asarray(collector[-1]).astype('float'))
@@ -197,52 +197,6 @@ def end(clientID):
     vrep.simxFinish(clientID)
     return error_code
 
-def write_to_hit_miss_txt(n_iter, txt_file_counter):
-    filename_newpos = base_dir + '/vrep_scripts/saved_vel_pos_data/current_position.txt'
-    filename_newpos0 = base_dir + '/vrep_scripts/saved_vel_pos_data/current_position0.txt'
-    filename_newpos1 = base_dir + '/vrep_scripts/saved_vel_pos_data/current_position1.txt'
-    filename_newpos2 = base_dir + '/vrep_scripts/saved_vel_pos_data/current_position2.txt'
-    filename_newpos3 = base_dir + '/vrep_scripts/saved_vel_pos_data/current_position3.txt'
-    filename_newpos4 = base_dir + '/vrep_scripts/saved_vel_pos_data/current_position4.txt'
-    filename_newpos5 = base_dir + '/vrep_scripts/saved_vel_pos_data/current_position5.txt'
-    filename_newpos6 = base_dir + '/vrep_scripts/saved_vel_pos_data/current_position6.txt'
-    filename_miss = base_dir + '/vrep_scripts/saved_vel_pos_data/train/miss/miss' + str(txt_file_counter)
-    filename_hit = base_dir + '/vrep_scripts/saved_vel_pos_data/train/hit/hit' + str(txt_file_counter)
-    filename_get_velocity = base_dir + '/vrep_scripts/saved_vel_pos_data/velocity.txt'
-
-    with open(filename_newpos, "w") as new_pos_file:
-        print(x_list_of_positions[txt_file_counter + 1], file=new_pos_file)
-        print(y_list_of_positions[txt_file_counter + 1], file=new_pos_file)
-        print(z_permanent, file=new_pos_file)
-    with open(filename_newpos0, "w") as new_pos_file:
-        print(x_list_of_positions0[txt_file_counter + 1], file=new_pos_file)
-        print(y_list_of_positions0[txt_file_counter + 1], file=new_pos_file)
-        print(z_permanent, file=new_pos_file)
-    with open(filename_newpos1, "w") as new_pos_file:
-        print(x_list_of_positions1[txt_file_counter + 1], file=new_pos_file)
-        print(y_list_of_positions1[txt_file_counter + 1], file=new_pos_file)
-        print(z_permanent, file=new_pos_file)
-    with open(filename_newpos2, "w") as new_pos_file:
-        print(x_list_of_positions2[txt_file_counter + 1], file=new_pos_file)
-        print(y_list_of_positions2[txt_file_counter + 1], file=new_pos_file)
-        print(z_permanent, file=new_pos_file)
-    with open(filename_newpos3, "w") as new_pos_file:
-        print(x_list_of_positions3[txt_file_counter + 1], file=new_pos_file)
-        print(y_list_of_positions3[txt_file_counter + 1], file=new_pos_file)
-        print(z_permanent, file=new_pos_file)
-    with open(filename_newpos4, "w") as new_pos_file:
-        print(x_list_of_positions4[txt_file_counter + 1], file=new_pos_file)
-        print(y_list_of_positions4[txt_file_counter + 1], file=new_pos_file)
-        print(z_permanent, file=new_pos_file)
-    with open(filename_newpos5, "w") as new_pos_file:
-        print(x_list_of_positions5[txt_file_counter + 1], file=new_pos_file)
-        print(y_list_of_positions5[txt_file_counter + 1], file=new_pos_file)
-        print(z_permanent, file=new_pos_file)
-    with open(filename_newpos6, "w") as new_pos_file:
-        print(x_list_of_positions6[txt_file_counter + 1], file=new_pos_file)
-        print(y_list_of_positions6[txt_file_counter + 1], file=new_pos_file)
-        print(z_permanent, file=new_pos_file)
-
 def view_image(image, name):
     plt.imshow(image, cmap='gray')
     plt.title(name)
@@ -285,13 +239,13 @@ def create_recurrent_states(model, batch):
 def single_simulation_noca(pn_model, n_iter, txt_file_counter, inp_type):
 
     if inp_type == 0:
-        input_pn = Variable(torch.from_numpy(np.zeros(64*64*3*2+10)).float().cuda())
+        input_pn = Variable(torch.from_numpy(np.zeros(64*64*3*2+13)).float().cuda())
         pn_model(input_pn)
         states = []
 
     elif inp_type == 1:
         vid_input_to_pn = Variable(torch.from_numpy(np.zeros((1, 3, 64, 64))).float().cuda())
-        st_input_to_pn = Variable(torch.from_numpy(np.zeros((1, 10))).float().cuda())
+        st_input_to_pn = Variable(torch.from_numpy(np.zeros((1, 13))).float().cuda())
 
         pn_vid_states, pn_st_states = create_recurrent_states(pn_model, 1)
         pn_model(vid_input_to_pn, st_input_to_pn, pn_vid_states, pn_st_states)
@@ -300,7 +254,7 @@ def single_simulation_noca(pn_model, n_iter, txt_file_counter, inp_type):
 
     elif inp_type == 2:
         vid_input_to_pn = Variable(torch.from_numpy(np.zeros((1, 6, 64, 64))).float().cuda())
-        st_input_to_pn = Variable(torch.from_numpy(np.zeros((1, 10))).float().cuda())
+        st_input_to_pn = Variable(torch.from_numpy(np.zeros((1, 13))).float().cuda())
 
         pn_model(st_input_to_pn, vid_input_to_pn)
         states = []
@@ -311,7 +265,7 @@ def single_simulation_noca(pn_model, n_iter, txt_file_counter, inp_type):
         prev_2 = create_lstm_states(pn_model.h_2_sz, 1)
 
         pn_prev_states = [prev_0, prev_1, prev_2]
-        input_pn = Variable(torch.from_numpy(np.zeros(64*64*3*2+10)).float().cuda().unsqueeze(0))
+        input_pn = Variable(torch.from_numpy(np.zeros(64*64*3*2+13)).float().cuda().unsqueeze(0))
         pn_model(input_pn, pn_prev_states)
 
         states = [pn_prev_states]
@@ -323,22 +277,20 @@ def single_simulation_noca(pn_model, n_iter, txt_file_counter, inp_type):
     image_array, state_array = collectImageData(None, pn_model, clientID, states, inp_type, False) #store these images
     end_error = end(clientID)
     state = np.asarray(state_array).astype(float)
-    write_to_hit_miss_txt(n_iter, txt_file_counter)
 
     return state
 
 def single_simulation(ca_model, pn_model, n_iter, txt_file_counter, inp_type):
 
     vid_input_to_model = Variable(torch.from_numpy(np.zeros((1, 3, 64, 64))).float().cuda())
-    st_input_to_model = Variable(torch.from_numpy(np.zeros(10)).float().cuda())
+    st_input_to_model = Variable(torch.from_numpy(np.zeros(13)).float().cuda())
     vid_states, st_states = create_recurrent_states(ca_model, 1)
     ca_model(vid_input_to_model, st_input_to_model, vid_states, st_states)
 
     if inp_type == 0:
-        input_pn = Variable(torch.from_numpy(np.zeros(64*64*3*2+10+10)).float().cuda())
+        input_pn = Variable(torch.from_numpy(np.zeros(64*64*3*2+10+13)).float().cuda())
 
         pn_model(input_pn)
-
         states = [vid_states, st_states]
     elif inp_type == 1:
         vid_input_to_pn = Variable(torch.from_numpy(np.zeros((1, 3, 64, 64))).float().cuda())
@@ -361,7 +313,7 @@ def single_simulation(ca_model, pn_model, n_iter, txt_file_counter, inp_type):
         prev_2 = create_lstm_states(pn_model.h_2_sz, 1)
 
         pn_prev_states = [prev_0, prev_1, prev_2]
-        input_pn = Variable(torch.from_numpy(np.zeros(64*64*3*2+10+10)).float().cuda().unsqueeze(0))
+        input_pn = Variable(torch.from_numpy(np.zeros(64*64*3*2+13+10)).float().cuda().unsqueeze(0))
         pn_model(input_pn, pn_prev_states)
 
         states = [vid_states, st_states, pn_prev_states]

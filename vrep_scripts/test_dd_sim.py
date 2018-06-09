@@ -86,7 +86,6 @@ def end(clientID):
     return error_code
 
 def detectCollisionSignal(clientID):
-    detector = 0
     collision_str = "collision_signal"
     detector = vrep.simxGetIntegerSignal(clientID, collision_str, vrep.simx_opmode_oneshot_wait)
 
