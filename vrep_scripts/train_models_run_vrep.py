@@ -21,63 +21,6 @@ config.read('../config.ini')
 
 base_dir = config['DEFAULT']['BASE_DIR']
 
-x_list_of_positions = np.random.normal(0, 1.0, 3000)
-y_list_of_positions = np.random.normal(-12 , 1.0, 3000)
-x_list_of_positions0 = np.random.normal(1, 1.0, 3000)
-y_list_of_positions0 = np.random.normal(-12 , 1.0, 3000)
-x_list_of_positions1 = np.random.normal(-1, 1.0, 3000)
-y_list_of_positions1 = np.random.normal(-12 , 1.0, 3000)
-x_list_of_positions2 = np.random.normal(2, 1.0, 3000)
-y_list_of_positions2 = np.random.normal(-12 , 1.0, 3000)
-x_list_of_positions3 = np.random.normal(-2, 1.0, 3000)
-y_list_of_positions3 = np.random.normal(-12 , 1.0, 3000)
-x_list_of_positions4 = np.random.normal(0, 1.0, 3000)
-y_list_of_positions4 = np.random.normal(-12 , 1.0, 3000)
-x_list_of_positions5 = np.random.normal(0, 1.0, 3000)
-y_list_of_positions5 = np.random.normal(-12 , 1.0, 3000)
-x_list_of_positions6 = np.random.normal(0, 1.0, 3000)
-y_list_of_positions6 = np.random.normal(-12 , 1.0, 3000)
-z_permanent = .2555
-
-with open(base_dir + '/vrep_scripts/saved_vel_pos_data/current_position.txt', "w") as new_pos_file:
-    print(x_list_of_positions[0], file=new_pos_file)
-    print(y_list_of_positions[0], file=new_pos_file)
-    print(z_permanent, file=new_pos_file)
-
-with open(base_dir + '/vrep_scripts/saved_vel_pos_data/current_position0.txt', "w") as new_pos_file:
-    print(x_list_of_positions0[0], file=new_pos_file)
-    print(y_list_of_positions0[0], file=new_pos_file)
-    print(z_permanent, file=new_pos_file)
-
-with open(base_dir + '/vrep_scripts/saved_vel_pos_data/current_position1.txt', "w") as new_pos_file:
-    print(x_list_of_positions1[0], file=new_pos_file)
-    print(y_list_of_positions1[0], file=new_pos_file)
-    print(z_permanent, file=new_pos_file)
-
-with open(base_dir + '/vrep_scripts/saved_vel_pos_data/current_position2.txt', "w") as new_pos_file:
-    print(x_list_of_positions2[0], file=new_pos_file)
-    print(y_list_of_positions2[0], file=new_pos_file)
-    print(z_permanent, file=new_pos_file)
-
-with open(base_dir + '/vrep_scripts/saved_vel_pos_data/current_position3.txt', "w") as new_pos_file:
-    print(x_list_of_positions3[0], file=new_pos_file)
-    print(y_list_of_positions3[0], file=new_pos_file)
-    print(z_permanent, file=new_pos_file)
-
-with open(base_dir + '/vrep_scripts/saved_vel_pos_data/current_position4.txt', "w") as new_pos_file:
-    print(x_list_of_positions4[0], file=new_pos_file)
-    print(y_list_of_positions4[0], file=new_pos_file)
-    print(z_permanent, file=new_pos_file)
-
-with open(base_dir + '/vrep_scripts/saved_vel_pos_data/current_position5.txt', "w") as new_pos_file:
-    print(x_list_of_positions5[0], file=new_pos_file)
-    print(y_list_of_positions5[0], file=new_pos_file)
-    print(z_permanent, file=new_pos_file)
-
-with open(base_dir + '/vrep_scripts/saved_vel_pos_data/current_position6.txt', "w") as new_pos_file:
-    print(x_list_of_positions6[0], file=new_pos_file)
-    print(y_list_of_positions6[0], file=new_pos_file)
-    print(z_permanent, file=new_pos_file)
 
 def start():
     vrep.simxFinish(-1) # just in case, close all opened connections
