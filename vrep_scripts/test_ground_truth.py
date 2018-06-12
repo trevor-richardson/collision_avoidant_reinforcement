@@ -55,6 +55,7 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type, use_ca):
 
     collector = []
     if clientID!=-1:
+        err, tracer_handle = vrep.simxGetObjectHandle(clientID, 'LineTracer', vrep.simx_opmode_oneshot_wait)
         res,v0=vrep.simxGetObjectHandle(clientID,'Vision_sensor',vrep.simx_opmode_oneshot_wait)
         res,v1=vrep.simxGetObjectHandle(clientID,'PassiveVision_sensor',vrep.simx_opmode_oneshot_wait)
         ret_code, left_handle = vrep.simxGetObjectHandle(clientID,'DynamicLeftJoint', vrep.simx_opmode_oneshot_wait)
@@ -62,7 +63,7 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type, use_ca):
         ret_code, base_handle = vrep.simxGetObjectHandle(clientID, 'LineTracerBase', vrep.simx_opmode_oneshot_wait)
 
         res,resolution,image=vrep.simxGetVisionSensorImage(clientID,v0,0,vrep.simx_opmode_streaming)
-        ret_code, euler_angles = vrep.simxGetObjectOrientation(clientID, base_handle, -1, vrep.simx_opmode_streaming)
+        ret_code, euler_angles = vrep.simxGetObjectOrientation(clientID, tracer_handle, -1, vrep.simx_opmode_streaming)
         count = 0
         action = 2
         inference_counter = 0
@@ -84,9 +85,9 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type, use_ca):
                 rotate_img = np.flipud(img)
                 list_of_images.append(rotate_img)
 
-                ret_code, pos = vrep.simxGetObjectPosition(clientID, base_handle, -1, vrep.simx_opmode_oneshot)
-                ret_code, velo, angle_velo = vrep.simxGetObjectVelocity(clientID, base_handle, vrep.simx_opmode_oneshot)
-                ret_code, euler_angles = vrep.simxGetObjectOrientation(clientID, base_handle, -1, vrep.simx_opmode_buffer)
+                ret_code, pos = vrep.simxGetObjectPosition(clientID, tracer_handle, -1, vrep.simx_opmode_oneshot)
+                ret_code, velo, angle_velo = vrep.simxGetObjectVelocity(clientID, tracer_handle, vrep.simx_opmode_oneshot)
+                ret_code, euler_angles = vrep.simxGetObjectOrientation(clientID, tracer_handle, -1, vrep.simx_opmode_buffer)
                 collector.append([pos[0], pos[1], pos[2], velo[0], velo[1], velo[2], euler_angles[0], euler_angles[1], euler_angles[2], action])
                 if use_ca:
                     torch_vid = torch.from_numpy(np.transpose(np.expand_dims((list_of_images[-1]).astype('float'),axis=0), (0, 3, 1, 2)))

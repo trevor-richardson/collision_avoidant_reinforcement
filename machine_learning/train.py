@@ -167,7 +167,7 @@ else:
         print("Enter a correct input type")
         sys.exit()
 
-ca_model = AnticipationNet(rgb_shape, dd_inp_shape, h_0, h_1, h_2, h_out, (args.no_filters_0,
+ca_model = AnticipationNet(rgb_shape, dd_inp_shape-3, h_0, h_1, h_2, h_out, (args.no_filters_0,
     args.no_filters_1, args.no_filters_2), (args.kernel_0, args.kernel_0), args.strides, args.pred_window,
     padding=0)
 
@@ -235,7 +235,6 @@ def update_policy_network(model, optimizer):
 
     for log_prob, reward in zip(model.saved_log_probs, rewards):
         policy_loss.append(-log_prob * reward)
-        print(log_prob.grad)
     policy_loss = torch.cat(policy_loss).sum() / len(rewards)  #normalize or scale gradient by total steps
     policy_loss.backward()
     optimizer.step()
@@ -246,7 +245,7 @@ def update_policy_network(model, optimizer):
     optimizer.zero_grad()
     return total_rew
 
-# load_ca_model()
+load_ca_model()
 load_dd_model()
 # load_models(3200)
 

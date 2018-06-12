@@ -53,7 +53,9 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type, use_ca):
             pn_states = states[0]
 
     collector = []
+    collector2 = []
     if clientID!=-1:
+        err, tracer_handle = vrep.simxGetObjectHandle(clientID, 'LineTracer', vrep.simx_opmode_oneshot_wait)
         res,v0=vrep.simxGetObjectHandle(clientID,'Vision_sensor',vrep.simx_opmode_oneshot_wait)
         res,v1=vrep.simxGetObjectHandle(clientID,'PassiveVision_sensor',vrep.simx_opmode_oneshot_wait)
         ret_code, left_handle = vrep.simxGetObjectHandle(clientID,'DynamicLeftJoint', vrep.simx_opmode_oneshot_wait)
@@ -61,7 +63,7 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type, use_ca):
         ret_code, base_handle = vrep.simxGetObjectHandle(clientID, 'LineTracerBase', vrep.simx_opmode_oneshot_wait)
 
         res,resolution,image=vrep.simxGetVisionSensorImage(clientID,v0,0,vrep.simx_opmode_streaming)
-        ret_code, euler_angles = vrep.simxGetObjectOrientation(clientID, base_handle, -1, vrep.simx_opmode_streaming)
+        ret_code, euler_angles = vrep.simxGetObjectOrientation(clientID, tracer_handle, -1, vrep.simx_opmode_streaming)
         t_end = time.time() + 2.8
         count = 0
         action = 0
@@ -78,13 +80,14 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type, use_ca):
                 rotate_img = np.flipud(img)
                 list_of_images.append(rotate_img)
 
-                ret_code, pos = vrep.simxGetObjectPosition(clientID, base_handle, -1, vrep.simx_opmode_oneshot)
-                ret_code, velo, angle_velo = vrep.simxGetObjectVelocity(clientID, base_handle, vrep.simx_opmode_oneshot)
-                ret_code, euler_angles = vrep.simxGetObjectOrientation(clientID, base_handle, -1, vrep.simx_opmode_buffer)
+                ret_code, pos = vrep.simxGetObjectPosition(clientID, tracer_handle, -1, vrep.simx_opmode_oneshot)
+                ret_code, velo, angle_velo = vrep.simxGetObjectVelocity(clientID, tracer_handle, vrep.simx_opmode_oneshot)
+                ret_code, euler_angles = vrep.simxGetObjectOrientation(clientID, tracer_handle, -1, vrep.simx_opmode_buffer)
                 collector.append([pos[0], pos[1], pos[2], velo[0], velo[1], velo[2], angle_velo[0], angle_velo[1], angle_velo[2], euler_angles[0], euler_angles[1], euler_angles[2], action])
+                collector2.append([pos[0], pos[1], pos[2], velo[0], velo[1], velo[2], euler_angles[0], euler_angles[1], euler_angles[2], action])
                 if use_ca:
                     torch_vid = torch.from_numpy(np.transpose(np.expand_dims((list_of_images[-1]).astype('float'),axis=0), (0, 3, 1, 2)))
-                    torch_st = torch.from_numpy(np.asarray(collector[-1]).astype('float'))
+                    torch_st = torch.from_numpy(np.asarray(collector2[-1]).astype('float'))
                     vid_to_ca = Variable(torch_vid.float().cuda())
                     st_to_ca = Variable(torch_st.float().cuda())
                     output, vid_states, st_states = ca_model(vid_to_ca, st_to_ca, vid_states, st_states)
@@ -102,9 +105,6 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type, use_ca):
                         else:
                             input_to_model = torch.cat([a, b, c])
                     else:
-                        # print(len(list_of_images))
-                        # np.save(str(count) + 'a', list_of_images[-1])
-                        # np.save(str(count) + 'b', list_of_images[-2])
                         a = torch.from_numpy(list_of_images[-1].flatten()).float().cuda()
                         b = torch.from_numpy(list_of_images[-2].flatten()).float().cuda()
                         c =torch.from_numpy(np.asarray(collector[-1]).astype('float')).float().cuda()
@@ -281,7 +281,7 @@ def single_simulation_noca(pn_model, n_iter, txt_file_counter, inp_type):
 def single_simulation(ca_model, pn_model, n_iter, txt_file_counter, inp_type):
 
     vid_input_to_model = Variable(torch.from_numpy(np.zeros((1, 3, 64, 64))).float().cuda())
-    st_input_to_model = Variable(torch.from_numpy(np.zeros(13)).float().cuda())
+    st_input_to_model = Variable(torch.from_numpy(np.zeros(10)).float().cuda())
     vid_states, st_states = create_recurrent_states(ca_model, 1)
     ca_model(vid_input_to_model, st_input_to_model, vid_states, st_states)
 
@@ -292,7 +292,7 @@ def single_simulation(ca_model, pn_model, n_iter, txt_file_counter, inp_type):
         states = [vid_states, st_states]
     elif inp_type == 1:
         vid_input_to_pn = Variable(torch.from_numpy(np.zeros((1, 3, 64, 64))).float().cuda())
-        st_input_to_pn = Variable(torch.from_numpy(np.zeros((1, 20))).float().cuda())
+        st_input_to_pn = Variable(torch.from_numpy(np.zeros((1, 23))).float().cuda())
 
         pn_vid_states, pn_st_states = create_recurrent_states(pn_model, 1)
         pn_model(vid_input_to_pn, st_input_to_pn, pn_vid_states, pn_st_states)
@@ -300,7 +300,7 @@ def single_simulation(ca_model, pn_model, n_iter, txt_file_counter, inp_type):
         states = [pn_vid_states, pn_st_states, vid_states, st_states]
     elif inp_type == 2:
         vid_input_to_pn = Variable(torch.from_numpy(np.zeros((1, 6, 64, 64))).float().cuda())
-        st_input_to_pn = Variable(torch.from_numpy(np.zeros((1, 20))).float().cuda())
+        st_input_to_pn = Variable(torch.from_numpy(np.zeros((1, 23))).float().cuda())
 
         pn_model(st_input_to_pn, vid_input_to_pn)
 
@@ -323,7 +323,6 @@ def single_simulation(ca_model, pn_model, n_iter, txt_file_counter, inp_type):
     image_array, state_array = collectImageData(ca_model, pn_model, clientID, states, inp_type, True) #store these images
     end_error = end(clientID)
     state = np.asarray(state_array).astype(float)
-    write_to_hit_miss_txt(n_iter, txt_file_counter)
     return state
 
 def execute_exp(ca_model, pn_model, iter_start, iter_end, input_type, use_ca):

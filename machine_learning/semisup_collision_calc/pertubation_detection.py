@@ -134,8 +134,8 @@ def determine_reward_no_repeat(dd_model, pn_model, data, num_forward_passes, onl
     rew = evaluate_model(dd_model, num_forward_passes, data)
     low, high = calc_confidence_interval(rew)
     minimum = min(rew)
-    print(rew)
-    print(max(rew))
+    # print(rew)
+    # print(max(rew))
 
     for i in range(len(rew)):
         if rew[i] > 5000:
@@ -154,7 +154,7 @@ def determine_reward_no_repeat(dd_model, pn_model, data, num_forward_passes, onl
 
     if only_hits:
         if min(rew) == -1:
-            print("\n\n We got a hit")
+            # print("\n\n We got a hit")
             for index, element in enumerate(rew):
                 pn_model.rewards.append(element)
                 pn_model.saved_log_probs.append(pn_model.current_log_probs[index])
@@ -162,7 +162,7 @@ def determine_reward_no_repeat(dd_model, pn_model, data, num_forward_passes, onl
             pn_model.rewards.append(rew[-1])
             pn_model.reset_locations.append(len(pn_model.saved_log_probs) -1)
         else:
-            print("\n\n we got a miss")
+            # print("\n\n we got a miss")
             for element in pn_model.current_log_probs:
                 element.detach_()
     else:
