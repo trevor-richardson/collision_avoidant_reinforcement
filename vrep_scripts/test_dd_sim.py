@@ -31,6 +31,7 @@ def collectImageData(clientID):
     list_of_images = []
 
     collector = []
+    col_lst = []
     if clientID!=-1:
         res,v0=vrep.simxGetObjectHandle(clientID,'Vision_sensor',vrep.simx_opmode_oneshot_wait)
         res,v1=vrep.simxGetObjectHandle(clientID,'PassiveVision_sensor',vrep.simx_opmode_oneshot_wait)
@@ -44,15 +45,18 @@ def collectImageData(clientID):
         count = 0
         action = 2
         inference_counter = 0
-        steps = 50
+        steps = 30
         delay=0
 
         while (vrep.simxGetConnectionId(clientID)!=-1 and count < steps):
             tim = time.time()
 
-            '''The amount of time for inference for my model is .1 seconds'''
-            for i in range(20):
+            '''The amount of time for inference for my model is .05 - .1 seconds'''
+            _x = np.random.randint(0, 10)
+            _x+=10
+            for i in range(_x):
                 vrep.simxSynchronousTrigger(clientID)
+                col_lst.append(detectCollisionSignal(clientID))
 
             res,resolution,image=vrep.simxGetVisionSensorImage(clientID,v0,0,vrep.simx_opmode_buffer)
             if res==vrep.simx_return_ok:
@@ -78,7 +82,7 @@ def collectImageData(clientID):
                 return_val2 = vrep.simxSetJointTargetVelocity(clientID, right_handle, velo, vrep.simx_opmode_oneshot_wait)
             delay-=1
             count+=1
-        return list_of_images, collector
+        return list_of_images, collector, col_lst
     else:
         sys.exit()
 
@@ -100,18 +104,18 @@ def single_simulation():
 
     states = None
     clientID, start_error = start()
-    image_array, state_array = collectImageData(clientID) #store these images
+    image_array, state_array, col_lst = collectImageData(clientID) #store these images
     col_sig = detectCollisionSignal(clientID)
     end_error = end(clientID)
     state = np.asarray(state_array).astype(float)
 
-    return state, col_sig
+    return state, col_sig, col_lst
 
 
 def execute_exp():
     txt_file_counter = 1
     lst = []
-    states, col_sig = single_simulation()
+    states, col_sig, col_lst = single_simulation()
     lst.append(states)
 
-    return lst, col_sig
+    return lst, col_lst

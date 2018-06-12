@@ -80,7 +80,10 @@ def load_dd_model(file_path):
     global dd_model
     print(file_path)
     try:
-        dd_model.load_state_dict(torch.load(file_path))
+        if torch.cuda.is_available():
+            dd_model.load_state_dict(torch.load(file_path))
+        else:
+            dd_model.load_state_dict(torch.load(file_path, map_location='cpu'))
     except ValueError:
         print("Not a valid model to load")
         sys.exit()
@@ -96,29 +99,36 @@ for element in onlyfiles:
 def main():
     global dd_model
     global dd_optimizer
+    results_lst = []
+    collision_lst = []
 
     for path in paths:
         print("####################################################################################################################\n")
-        results_lst = []
         load_dd_model(path)
         for inner_index in range(args.validation_iterations):
 
             state, collision_detector = execute_exp()
+            print(collision_detector)
             rew = dd_test(dd_model, args.num_forward_passes, state[0])
             dd_optimizer.zero_grad()
 
-            if collision_detector > 0:
+            if max(collision_detector) > 0:
                 print("Hit")
                 results_lst.append([1, *rew])
             else:
                 print("Miss")
                 results_lst.append([0, *rew])
 
+            collision_lst.append([*collision_detector])
+
             print(results_lst[-1])
             print("Max DD value ", max(rew))
 
         f = path.split('/')[-1]
         np.save(f, np.asarray(results_lst))
+        np.save('_' + f, np.asarray(collision_lst))
+        del(results_lst[:])
+        del(collision_lst[:])
 
 
 if __name__ == '__main__':
