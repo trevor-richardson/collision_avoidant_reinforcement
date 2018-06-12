@@ -232,8 +232,10 @@ def update_policy_network(model, optimizer):
     rewards = torch.Tensor(rewards)
     total_rew = rewards.sum()
 
+
     for log_prob, reward in zip(model.saved_log_probs, rewards):
         policy_loss.append(-log_prob * reward)
+        print(log_prob.grad)
     policy_loss = torch.cat(policy_loss).sum() / len(rewards)  #normalize or scale gradient by total steps
     policy_loss.backward()
     optimizer.step()

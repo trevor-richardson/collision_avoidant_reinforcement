@@ -49,11 +49,12 @@ def collectImageData(clientID):
 
         while (vrep.simxGetConnectionId(clientID)!=-1 and count < steps):
             tim = time.time()
-            for i in range(10):
+
+            '''The amount of time for inference for my model is .1 seconds'''
+            for i in range(20):
                 vrep.simxSynchronousTrigger(clientID)
 
             res,resolution,image=vrep.simxGetVisionSensorImage(clientID,v0,0,vrep.simx_opmode_buffer)
-
             if res==vrep.simx_return_ok:
 
                 img = np.array(image,dtype=np.uint8)
@@ -65,6 +66,7 @@ def collectImageData(clientID):
                 ret_code, pos = vrep.simxGetObjectPosition(clientID, base_handle, -1, vrep.simx_opmode_oneshot)
                 ret_code, velo, angle_velo = vrep.simxGetObjectVelocity(clientID, base_handle, vrep.simx_opmode_oneshot)
                 ret_code, euler_angles = vrep.simxGetObjectOrientation(clientID, base_handle, -1, vrep.simx_opmode_buffer)
+
                 collector.append([pos[0], pos[1], pos[2], velo[0], velo[1], velo[2], angle_velo[0], angle_velo[1], angle_velo[2], euler_angles[0], euler_angles[1], euler_angles[2], action])
 
             if delay <= 0 :

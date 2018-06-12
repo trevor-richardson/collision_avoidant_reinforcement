@@ -21,13 +21,11 @@ config.read('../config.ini')
 
 base_dir = config['DEFAULT']['BASE_DIR']
 
-
 def start():
     vrep.simxFinish(-1) # just in case, close all opened connections
     clientID=vrep.simxStart('127.0.0.1',19997,True,True,5000,5) #start my Connection
     error_code =vrep.simxStartSimulation(clientID,vrep.simx_opmode_oneshot_wait)
     return clientID, error_code
-
 
 def collectImageData(ca_model, pn_model, clientID, states, input_type, use_ca):
     if use_ca:
@@ -68,6 +66,7 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type, use_ca):
         count = 0
         action = 0
         inference_counter = 0
+        tim = 0
 
         while (vrep.simxGetConnectionId(clientID)!=-1 and time.time() < t_end):
             res,resolution,image=vrep.simxGetVisionSensorImage(clientID,v0,0,vrep.simx_opmode_buffer)
@@ -83,7 +82,9 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type, use_ca):
                 ret_code, pos = vrep.simxGetObjectPosition(clientID, base_handle, -1, vrep.simx_opmode_oneshot)
                 ret_code, velo, angle_velo = vrep.simxGetObjectVelocity(clientID, base_handle, vrep.simx_opmode_oneshot)
                 ret_code, euler_angles = vrep.simxGetObjectOrientation(clientID, base_handle, -1, vrep.simx_opmode_buffer)
+                print("he", time.time() - tim)
                 collector.append([pos[0], pos[1], pos[2], velo[0], velo[1], velo[2], angle_velo[0], angle_velo[1], angle_velo[2], euler_angles[0], euler_angles[1], euler_angles[2], action])
+                tim = time.time()
                 if use_ca:
                     torch_vid = torch.from_numpy(np.transpose(np.expand_dims((list_of_images[-1]).astype('float'),axis=0), (0, 3, 1, 2)))
                     torch_st = torch.from_numpy(np.asarray(collector[-1]).astype('float'))
@@ -186,8 +187,8 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type, use_ca):
                 velo = (action -2)  * 15
                 return_val = vrep.simxSetJointTargetVelocity(clientID, left_handle, velo, vrep.simx_opmode_oneshot)
                 return_val2 = vrep.simxSetJointTargetVelocity(clientID, right_handle, velo, vrep.simx_opmode_oneshot_wait)
-
                 count+=1
+
         return list_of_images, collector
     else:
         sys.exit()
@@ -326,7 +327,6 @@ def single_simulation(ca_model, pn_model, n_iter, txt_file_counter, inp_type):
     end_error = end(clientID)
     state = np.asarray(state_array).astype(float)
     write_to_hit_miss_txt(n_iter, txt_file_counter)
-
     return state
 
 def execute_exp(ca_model, pn_model, iter_start, iter_end, input_type, use_ca):
