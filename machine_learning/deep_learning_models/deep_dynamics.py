@@ -12,9 +12,15 @@ class Deep_Dynamics(nn.Module):
                     num_neurons_3,
                     num_neurons_4,
                     output_shp,
+                    act=0,
                     dropout_rte=0):
         super(Deep_Dynamics, self).__init__()
         print("Initializing Deep Dynamics Model")
+        if act==0:
+            self.use_relu = True
+            self.m = nn.LeakyReLU(0.1)
+        else:
+            self.use_relu = False
 
         self.h_0 = nn.Linear(input_shp, num_neurons_0)
         self.h_1 = nn.Linear(num_neurons_0, num_neurons_1)
@@ -25,11 +31,16 @@ class Deep_Dynamics(nn.Module):
         self.dropout = nn.Dropout(dropout_rte)
 
     def forward(self, x):
-
-        drop_0 = self.dropout(F.tanh(self.h_0(x)))
-        drop_1 = self.dropout(F.tanh(self.h_1(drop_0)))
-        drop_2 = self.dropout(F.tanh(self.h_2(drop_1)))
-        drop_3 = self.dropout(F.tanh(self.h_3(drop_2)))
+        if self.use_relu:
+            drop_0 = self.dropout(self.m(self.h_0(x)))
+            drop_1 = self.dropout(self.m(self.h_1(drop_0)))
+            drop_2 = self.dropout(self.m(self.h_2(drop_1)))
+            drop_3 = self.dropout(self.m(self.h_3(drop_2)))
+        else:
+            drop_0 = self.dropout(F.tanh(self.h_0(x)))
+            drop_1 = self.dropout(F.tanh(self.h_1(drop_0)))
+            drop_2 = self.dropout(F.tanh(self.h_2(drop_1)))
+            drop_3 = self.dropout(F.tanh(self.h_3(drop_2)))
 
         y = self.output(drop_3)
 

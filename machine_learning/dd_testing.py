@@ -66,18 +66,78 @@ parser.add_argument('--num_forward_passes', type=int, default=64, metavar='N',
                     help='Number of forward passes for dropout at test time for multivariate_normal pdf calc')
 args = parser.parse_args()
 
-dd_inp_shape = (13)
-dd_output_shape = (12)
+path_to_pain_data = '/home/trevor/coding/robotic_pain/pain_data/deep_dynamics_models/'
 
-dd_model = Deep_Dynamics(dd_inp_shape, 60, 40, 30, 20, 20, dd_output_shape)
-if torch.cuda.is_available():
-    print("Using GPU acceleration")
-    dd_model.cuda()
+def init_model_paths(global_path):
+    modelstr = '_models/'
+    paths = []
 
-dd_optimizer = torch.optim.Adam(dd_model.parameters(), lr=.001)
+    for index in range(18):
+        new_path = global_path + str(index) + modelstr
+        for f in listdir(new_path):
+            if f.endswith('.pth'):
+                final_path = new_path + f
+                paths.append(final_path)
 
-def load_dd_model(file_path):
-    global dd_model
+    if len(paths) != 18:
+        sys.exit("\n\n\nMAJOR ERROR\n\n\n", + str( len(paths)))
+
+    return paths
+
+
+
+def init_model(path):
+    dd_inp_shape = (13)
+    dd_output_shape = (12)
+    x = path.split('/')
+    print(path.split('/'))
+    dir_nam = x[-2]
+    if dir_nam == '0_models':
+        dd_model = Deep_Dynamics(dd_inp_shape, 60, 40, 30, 20, 20, dd_output_shape, act=0, dropout_rte=.3)
+    elif dir_nam == '1_models':
+        dd_model = Deep_Dynamics(dd_inp_shape, 60, 40, 30, 20, 20, dd_output_shape, act=0, dropout_rte=.45)
+    elif dir_nam == '2_models':
+        dd_model = Deep_Dynamics(dd_inp_shape, 60, 40, 30, 20, 20, dd_output_shape, act=0, dropout_rte=.6)
+    elif dir_nam == '3_models':
+        dd_model = Deep_Dynamics(dd_inp_shape, 30, 20, 15, 10, 10, dd_output_shape, act=0, dropout_rte=.3)
+    elif dir_nam == '4_models':
+        dd_model = Deep_Dynamics(dd_inp_shape, 30, 20, 15, 10, 10, dd_output_shape, act=0, dropout_rte=.45)
+    elif dir_nam == '5_models':
+        dd_model = Deep_Dynamics(dd_inp_shape, 30, 20, 15, 10, 10, dd_output_shape, act=0, dropout_rte=.6)
+    elif dir_nam == '6_models':
+        dd_model = Deep_Dynamics(dd_inp_shape, 120, 80, 60, 40, 40, dd_output_shape, act=0, dropout_rte=.3)
+    elif dir_nam == '7_models':
+        dd_model = Deep_Dynamics(dd_inp_shape, 120, 80, 60, 40, 40, dd_output_shape, act=0, dropout_rte=.45)
+    elif dir_nam == '8_models':
+        dd_model = Deep_Dynamics(dd_inp_shape, 120, 80, 60, 40, 40, dd_output_shape, act=0, dropout_rte=.6)
+    elif dir_nam == '9_models':
+        dd_model = Deep_Dynamics(dd_inp_shape, 60, 40, 30, 20, 20, dd_output_shape, act=1, dropout_rte=.3)
+    elif dir_nam == '10_models':
+        dd_model = Deep_Dynamics(dd_inp_shape, 60, 40, 30, 20, 20, dd_output_shape, act=1, dropout_rte=.45)
+    elif dir_nam == '11_models':
+        dd_model = Deep_Dynamics(dd_inp_shape, 60, 40, 30, 20, 20, dd_output_shape, act=1, dropout_rte=.6)
+    elif dir_nam == '12_models':
+        dd_model = Deep_Dynamics(dd_inp_shape, 30, 20, 15, 10, 10, dd_output_shape, act=1, dropout_rte=.3)
+    elif dir_nam == '13_models':
+        dd_model = Deep_Dynamics(dd_inp_shape, 30, 20, 15, 10, 10, dd_output_shape, act=1, dropout_rte=.45)
+    elif dir_nam == '14_models':
+        dd_model = Deep_Dynamics(dd_inp_shape, 30, 20, 15, 10, 10, dd_output_shape, act=1, dropout_rte=.6)
+    elif dir_nam == '15_models':
+        dd_model = Deep_Dynamics(dd_inp_shape, 120, 80, 60, 40, 40, dd_output_shape, act=1, dropout_rte=.3)
+    elif dir_nam == '16_models':
+        dd_model = Deep_Dynamics(dd_inp_shape, 120, 80, 60, 40, 40, dd_output_shape, act=1, dropout_rte=.45)
+    elif dir_nam == '17_models':
+        dd_model = Deep_Dynamics(dd_inp_shape, 120, 80, 60, 40, 40, dd_output_shape, act=1, dropout_rte=.6)
+
+
+    dd_optimizer = torch.optim.Adam(dd_model.parameters(), lr=.001)
+    if torch.cuda.is_available():
+        print("Using GPU acceleration")
+        dd_model.cuda()
+
+    return dd_model, dd_optimizer
+
+def load_dd_model(file_path, dd_model):
     print(file_path)
     try:
         if torch.cuda.is_available():
@@ -97,14 +157,20 @@ for element in onlyfiles:
     paths.append(base_dir + '/machine_learning/saved_models/test_dd/' + element)
 
 def main():
-    global dd_model
-    global dd_optimizer
+    # global dd_model
+    # global dd_optimizer
     results_lst = []
     collision_lst = []
+    paths = init_model_paths(path_to_pain_data)
+    print(paths)
 
     for path in paths:
         print("####################################################################################################################\n")
-        load_dd_model(path)
+        #Initialize dd model
+        dd_model, dd_optimizer = init_model(path)
+        print(torch.sum(dd_model.h_0.weight.data))
+        load_dd_model(path, dd_model)
+        print(torch.sum(dd_model.h_0.weight.data))
         for inner_index in range(args.validation_iterations):
 
             state, collision_detector = execute_exp()
@@ -124,11 +190,12 @@ def main():
             print(results_lst[-1])
             print("Max DD value ", max(rew))
 
-        f = path.split('/')[-1]
+        f = path.split('/')[-2]
         np.save(f, np.asarray(results_lst))
         np.save('_' + f, np.asarray(collision_lst))
         del(results_lst[:])
         del(collision_lst[:])
+        del dd_model
 
 
 if __name__ == '__main__':
