@@ -26,33 +26,11 @@ class IRNNCell(nn.Module):
         self.b = nn.Parameter(torch.zeros(hidden_size))
         self.recurrent_act = recurrent_act
 
-        if(drop==None):
-            self.keep_prob = False
-        else:
-            self.keep_prob = True
-            self.dropout = nn.Dropout(drop)
-        if(rec_drop == None):
-            self.rec_keep_prob = False
-        else:
-            self.rec_keep_prob = True
-            self.rec_dropout = nn.Dropout(rec_drop)
 
-
-        self.hidden_state = None
-
-
-    def forward(self, X_t):
-        h_t_previous = self.hidden_state
-
-        if self.keep_prob:
-            X_t = self.dropout(X_t)
-        if self.rec_keep_prob:
-            h_t_previous = self.rec_dropout(h_t_previous)
-            c_t_previous = self.rec_dropout(c_t_previous)
+    def forward(self, X_t, h_t_previous):
 
         out = F.relu(
             torch.mm(X_t, self.W_x) + torch.mm(h_t_previous, self.U_h) + self.b
         )
 
-        self.hidden_state = out
         return out
