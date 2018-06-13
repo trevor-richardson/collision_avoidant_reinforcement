@@ -40,10 +40,6 @@ except AttributeError:
         return tensor
     torch._utils._rebuild_tensor_v2 = _rebuild_tensor_v2
 
-'''
-----------------------
-Read and implement ddpg
-'''
 
 ''' Global Variables of Interest '''
 def str2bool(v):

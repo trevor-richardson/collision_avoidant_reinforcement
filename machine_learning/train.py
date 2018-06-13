@@ -122,25 +122,27 @@ eps = np.finfo(np.float32).eps.item()
 0 - fcn
 1 - conv lstm 2 branches for state action and image
 2 - conv network
-3 - drnn
-4 - convlstm1 -- convlstm with image and concatenate state input
+3 - conv irnn
 '''
 
 if args.use_ca:
     if args.policy_inp_type == 0:
+        print("Initializing Feed foward policy network")
         pn_inp = 3 * 64 * 64 * 2 + 10 + 13
         pn_model = Policy_Network(pn_inp, args.hidden_0, args.hidden_1, args.hidden_2, args.hidden_3, pn_output)
     elif args.policy_inp_type == 1:
+        print("Initializing ConvLSTM Policy Net")
         st_shp = (dd_inp_shape+args.pred_window)
         pn_model = ConvLSTMPolicyNet(rgb_shape, st_shp, h_0, h_1, h_2, h_out, (args.no_filters_0,
             args.no_filters_1, args.no_filters_2), (args.kernel_0, args.kernel_0), args.strides, pn_output,
             padding=0)
     elif args.policy_inp_type == 2:
-        print("Initializing conv policy")
+        print("Initializing Conv Policy Net")
         st_shp = (dd_inp_shape+args.pred_window)
         pn_model = ConvPolicy_Network(st_shp, (6, 64, 64), args.no_filters_0, args.no_filters_1,
             args.no_filters_2, 5, args.hidden_0, args.hidden_1, args.hidden_2, pn_output)
     elif args.policy_inp_type == 3:
+        print("Initializaing Conv iRNN Policy Net")
         pn_inp = 3 * 64 * 64 * 2 + 10 + 13
         pn_model = Policy_LSTMNetwork(pn_inp, args.hidden_0, args.hidden_1, args.hidden_2, pn_output)
     else:
@@ -277,6 +279,7 @@ def main():
         ca_optimizer.zero_grad()
 
         if len(pn_model.reset_locations) == args.update_size:
+
             update_counter+=1
             reward = update_policy_network(pn_model, pn_optimizer)
             index +=1
@@ -285,6 +288,7 @@ def main():
             pn_optimizer.zero_grad()
             save_models(index)
             update_counter = 1
+
             if args.all_hit:
                 count_list.append(count)
             else:
@@ -292,6 +296,7 @@ def main():
 
             print(str(args.exp_num) + "**********************", index ,"**********************")
             print("Iterations from last update or total reward ", count_list)
+
             count = 0
         count+=1
     np.save(str(args.exp_num) + "tbtwnupdate", np.asarray(count_list))
