@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.autograd import Variable
 
 class IRNNCell(nn.Module):
     def __init__(self, input_size,
@@ -16,7 +17,7 @@ class IRNNCell(nn.Module):
         self.hidden_size = hidden_size
         if(weight_init==None):
             self.W_x = nn.Parameter(torch.zeros(input_size, hidden_size))
-            self.W_x = nn.init.xavier_normal_(self.W_x)
+            self.W_x = nn.init.xavier_normal(self.W_x)
         else:
             self.W_x = nn.Parameter(torch.zeros(input_size, hidden_size))
             self.W_x = weight_init(self.W_x)
@@ -28,6 +29,7 @@ class IRNNCell(nn.Module):
 
 
     def forward(self, X_t, h_t_previous):
+
 
         out = F.relu(
             torch.mm(X_t, self.W_x) + torch.mm(h_t_previous, self.U_h) + self.b

@@ -32,6 +32,7 @@ from collision_avoidance import AnticipationNet
 from policy_convlstm_net import ConvLSTMPolicyNet
 from policy_conv_net import ConvPolicy_Network
 from policy_lstm_network import Policy_LSTMNetwork
+from policy_conv_irnn import ConviRNNPolicy_Network
 from train_models_run_vrep import execute_exp
 from pertubation_detection import *
 
@@ -142,17 +143,21 @@ if args.use_ca:
         pn_model = ConvPolicy_Network(st_shp, (6, 64, 64), args.no_filters_0, args.no_filters_1,
             args.no_filters_2, 5, args.hidden_0, args.hidden_1, args.hidden_2, pn_output)
     elif args.policy_inp_type == 3:
-        print("Initializaing Conv iRNN Policy Net")
-        pn_inp = 3 * 64 * 64 * 2 + 10 + 13
-        pn_model = Policy_LSTMNetwork(pn_inp, args.hidden_0, args.hidden_1, args.hidden_2, pn_output)
+        print("Initializing conv-irnn policy")
+        st_shp = (dd_inp_shape+args.pred_window)
+        pn_model = ConviRNNPolicy_Network(st_shp, (6, 64, 64), args.no_filters_0, args.no_filters_1,
+            args.no_filters_2, 5, args.hidden_0, args.hidden_1, pn_output)
+        pn_model.reset(1) #reset hidden states of model
     else:
         print("Enter a correct input type")
         sys.exit()
 else:
     if args.policy_inp_type == 0:
+        print("Initializing feed forward policy")
         pn_inp = 3 * 64 * 64 * 2 + 13
         pn_model = Policy_Network(pn_inp, args.hidden_0, args.hidden_1, args.hidden_2, args.hidden_3, pn_output)
     elif args.policy_inp_type == 1:
+        print("Initializing convLSTM policy")
         st_shp = (dd_inp_shape)
         pn_model = ConvLSTMPolicyNet(rgb_shape, st_shp, h_0, h_1, h_2, h_out, (args.no_filters_0,
             args.no_filters_1, args.no_filters_2), (args.kernel_0, args.kernel_0), args.strides, pn_output,
@@ -163,8 +168,11 @@ else:
         pn_model = ConvPolicy_Network(st_shp, (6, 64, 64), args.no_filters_0, args.no_filters_1,
             args.no_filters_2, 5, args.hidden_0, args.hidden_1, args.hidden_2, pn_output)
     elif args.policy_inp_type == 3:
-        pn_inp = 3 * 64 * 64 * 2 + 13
-        pn_model = Policy_LSTMNetwork(pn_inp, args.hidden_0, args.hidden_1, args.hidden_2, pn_output)
+        print("Initializing conv-irnn policy")
+        st_shp = (dd_inp_shape)
+        pn_model = ConviRNNPolicy_Network(st_shp, (6, 64, 64), args.no_filters_0, args.no_filters_1,
+            args.no_filters_2, 5, args.hidden_0, args.hidden_1, pn_output)
+        pn_model.reset(args.update_size) #reset hidden states of model
     else:
         print("Enter a correct input type")
         sys.exit()
@@ -274,6 +282,8 @@ def main():
     while index < args.training_iterations:
 
         data = execute_exp(ca_model, pn_model, 0, 1, args.policy_inp_type, args.use_ca) #needs to return batch, necesary_arguments,
+        if args.policy_inp_type == 3:
+            pn_model.reset(1)
         determine_reward_no_repeat(dd_model, pn_model, data[0], args.num_forward_passes, args.all_hit)
         dd_optimizer.zero_grad()
         ca_optimizer.zero_grad()

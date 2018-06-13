@@ -34,7 +34,7 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type, use_ca):
 
     list_of_images = []
 
-    if (input_type == 0 or input_type ==2) and use_ca:
+    if (input_type == 0 or input_type ==2 or input_type == 3) and use_ca:
         vid_states = states[0]
         st_states = states[1]
 
@@ -44,13 +44,6 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type, use_ca):
             st_states = states[3]
         pn_vidstates = states[0]
         pn_ststates = states[1]
-    elif input_type == 3:
-        if use_ca:
-            vid_states = states[0]
-            st_states = states[1]
-            pn_states = states[2]
-        else:
-            pn_states = states[0]
 
     collector = []
     collector2 = []
@@ -125,7 +118,7 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type, use_ca):
                     else:
                         st_input = Variable(c.unsqueeze(0))
                     out, pn_vidstates, pn_ststates = pn_model(vid_input, st_input, pn_vidstates, pn_ststates)
-                elif input_type == 2:
+                elif input_type == 2 or input_type==3:
                     #stack two images together and I need to verify the images being stacked are reasonable
                     if count == 0:
                         stacked_img = np.concatenate(
@@ -150,29 +143,6 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type, use_ca):
                         else:
                             st_input = Variable(c.unsqueeze(0))
                     out = pn_model(st_input, vid_input)
-
-                elif input_type == 3:
-                    if count == 0:
-                        a = torch.from_numpy(list_of_images[-1].flatten()).float().cuda()
-                        b = torch.from_numpy(list_of_images[-1].flatten()).float().cuda()
-                        c =torch.from_numpy(np.asarray(collector[-1]).astype('float')).float().cuda()
-
-                        if use_ca:
-                            d = torch.squeeze(output.data).float().cuda()
-                            input_to_model = Variable(torch.cat([a, b, c, d]).unsqueeze(0))
-                        else:
-                            input_to_model = Variable(torch.cat([a, b, c]).unsqueeze(0))
-
-                    else:
-                        a = torch.from_numpy(list_of_images[-1].flatten()).float().cuda()
-                        b = torch.from_numpy(list_of_images[-1].flatten()).float().cuda()
-                        c =torch.from_numpy(np.asarray(collector[-1]).astype('float')).float().cuda()
-                        if use_ca:
-                            d = torch.squeeze(output.data).float().cuda()
-                            input_to_model = Variable(torch.cat([a, b, c, d]).unsqueeze(0))
-                        else:
-                            input_to_model = Variable(torch.cat([a, b, c]).unsqueeze(0))
-                    out, pn_states = pn_model(input_to_model, pn_states)
 
                 else:
                     print("Error 12")
@@ -258,15 +228,11 @@ def single_simulation_noca(pn_model, n_iter, txt_file_counter, inp_type):
         states = []
 
     elif inp_type == 3:
-        prev_0 = create_lstm_states(pn_model.h_0_sz, 1)
-        prev_1 = create_lstm_states(pn_model.h_1_sz, 1)
-        prev_2 = create_lstm_states(pn_model.h_2_sz, 1)
+        vid_input_to_pn = Variable(torch.from_numpy(np.zeros((1, 6, 64, 64))).float().cuda())
+        st_input_to_pn = Variable(torch.from_numpy(np.zeros((1, 13))).float().cuda())
 
-        pn_prev_states = [prev_0, prev_1, prev_2]
-        input_pn = Variable(torch.from_numpy(np.zeros(64*64*3*2+13)).float().cuda().unsqueeze(0))
-        pn_model(input_pn, pn_prev_states)
-
-        states = [pn_prev_states]
+        pn_model(st_input_to_pn, vid_input_to_pn)
+        states = []
     else:
         print("need to implement new input type")
         sys.exit()
@@ -298,23 +264,13 @@ def single_simulation(ca_model, pn_model, n_iter, txt_file_counter, inp_type):
         pn_model(vid_input_to_pn, st_input_to_pn, pn_vid_states, pn_st_states)
 
         states = [pn_vid_states, pn_st_states, vid_states, st_states]
-    elif inp_type == 2:
+    elif inp_type == 2 or inp_type == 3:
         vid_input_to_pn = Variable(torch.from_numpy(np.zeros((1, 6, 64, 64))).float().cuda())
         st_input_to_pn = Variable(torch.from_numpy(np.zeros((1, 23))).float().cuda())
 
         pn_model(st_input_to_pn, vid_input_to_pn)
 
         states = [vid_states, st_states]
-    elif inp_type == 3:
-        prev_0 = create_lstm_states(pn_model.h_0_sz, 1)
-        prev_1 = create_lstm_states(pn_model.h_1_sz, 1)
-        prev_2 = create_lstm_states(pn_model.h_2_sz, 1)
-
-        pn_prev_states = [prev_0, prev_1, prev_2]
-        input_pn = Variable(torch.from_numpy(np.zeros(64*64*3*2+13+10)).float().cuda().unsqueeze(0))
-        pn_model(input_pn, pn_prev_states)
-
-        states = [vid_states, st_states, pn_prev_states]
     else:
         print("need to implement new input type")
         sys.exit()
