@@ -46,7 +46,6 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type, use_ca):
         pn_ststates = states[1]
 
     collector = []
-    collector2 = []
     if clientID!=-1:
         err, tracer_handle = vrep.simxGetObjectHandle(clientID, 'LineTracer', vrep.simx_opmode_oneshot_wait)
         res,v0=vrep.simxGetObjectHandle(clientID,'Vision_sensor',vrep.simx_opmode_oneshot_wait)
@@ -61,6 +60,7 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type, use_ca):
         count = 0
         action = 0
         inference_counter = 0
+        tim = 0
 
         while (vrep.simxGetConnectionId(clientID)!=-1 and time.time() < t_end):
             res,resolution,image=vrep.simxGetVisionSensorImage(clientID,v0,0,vrep.simx_opmode_buffer)
@@ -77,10 +77,9 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type, use_ca):
                 ret_code, velo, angle_velo = vrep.simxGetObjectVelocity(clientID, tracer_handle, vrep.simx_opmode_oneshot)
                 ret_code, euler_angles = vrep.simxGetObjectOrientation(clientID, tracer_handle, -1, vrep.simx_opmode_buffer)
                 collector.append([pos[0], pos[1], pos[2], velo[0], velo[1], velo[2], angle_velo[0], angle_velo[1], angle_velo[2], euler_angles[0], euler_angles[1], euler_angles[2], action])
-                collector2.append([pos[0], pos[1], pos[2], velo[0], velo[1], velo[2], euler_angles[0], euler_angles[1], euler_angles[2], action])
                 if use_ca:
                     torch_vid = torch.from_numpy(np.transpose(np.expand_dims((list_of_images[-1]).astype('float'),axis=0), (0, 3, 1, 2)))
-                    torch_st = torch.from_numpy(np.asarray(collector2[-1]).astype('float'))
+                    torch_st = torch.from_numpy(np.asarray(collector[-1]).astype('float'))
                     vid_to_ca = Variable(torch_vid.float().cuda())
                     st_to_ca = Variable(torch_st.float().cuda())
                     output, vid_states, st_states = ca_model(vid_to_ca, st_to_ca, vid_states, st_states)

@@ -181,7 +181,7 @@ ca_model = AnticipationNet(rgb_shape, dd_inp_shape-3, h_0, h_1, h_2, h_out, (arg
     args.no_filters_1, args.no_filters_2), (args.kernel_0, args.kernel_0), args.strides, args.pred_window,
     padding=0)
 
-dd_model = Deep_Dynamics(dd_inp_shape, 60, 40, 30, 20, 20, dd_output_shape)
+dd_model = Deep_Dynamics(dd_inp_shape, 60, 40, 30, 20, 20, dd_output_shape, 0, .6)
 
 if torch.cuda.is_available():
     print("Using GPU acceleration")
@@ -201,7 +201,7 @@ def load_models(iteration):
     global ca_model
     global pn_model
     try:
-        dd_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/dd_model/0.11827140841.pth"))
+        dd_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/dd_model/0.20046165377594705.pth"))
         ca_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/ca_model/780.5778702075141.pth"))
         pn_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/pn" + str(iteration) + ".pth"))
     except ValueError:
@@ -211,7 +211,7 @@ def load_models(iteration):
 def load_dd_model():
     global dd_model
     try:
-        dd_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/dd_model/0.23850592340511315.pth"))
+        dd_model.load_state_dict(torch.load(base_dir + "/machine_learning/saved_models/dd_model/0.25559931709652856.pth"))
     except ValueError:
         print("Not a valid model to load")
         sys.exit()
@@ -279,6 +279,8 @@ def main():
     for param in ca_model.parameters():
         param.requires_grad=False
 
+    tim = time.time()
+
     while index < args.training_iterations:
 
         data = execute_exp(ca_model, pn_model, 0, 1, args.policy_inp_type, args.use_ca) #needs to return batch, necesary_arguments,
@@ -310,6 +312,7 @@ def main():
             count = 0
         count+=1
     np.save(str(args.exp_num) + "tbtwnupdate", np.asarray(count_list))
+    print("TIME IT TOOK ", time.time() - tim)
 
 if __name__ == '__main__':
     main()
