@@ -172,7 +172,7 @@ else:
         st_shp = (dd_inp_shape)
         pn_model = ConviRNNPolicy_Network(st_shp, (6, 64, 64), args.no_filters_0, args.no_filters_1,
             args.no_filters_2, 5, args.hidden_0, args.hidden_1, pn_output)
-        pn_model.reset(args.update_size) #reset hidden states of model
+        pn_model.reset(1) #reset hidden states of model
     else:
         print("Enter a correct input type")
         sys.exit()

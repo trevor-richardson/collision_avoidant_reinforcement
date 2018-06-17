@@ -113,16 +113,11 @@ def determine_reward_val(dd_model, pn_model, data, num_forward_passes):
     low, high = calc_confidence_interval(rew)
     minimum = min(rew)
 
-    for i in range(len(rew)):
-        if rew[i] < high:
-            rew[i] = 0
-        else:
-            rew[i] += -minimum
-            if rew[i] < 5:
-                rew[i] = 0
-            else:
-                return 1
-    return 0
+    if max(rew) > 250:
+        return 1
+    else:
+        return 0
+
 
 
 def dd_test(dd_model, num_forward_passes, data):

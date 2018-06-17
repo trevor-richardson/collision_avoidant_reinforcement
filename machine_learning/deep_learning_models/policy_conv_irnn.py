@@ -70,6 +70,7 @@ class ConviRNNPolicy_Network(nn.Module):
 
         self.prev_irnn_0_h = self.irnn_0(x_st, self.prev_irnn_0_h)
 
+
         flat = torch.cat((himg_2.view(himg_2.size(0), -1), self.prev_irnn_0_h), dim=1)
 
         self.prev_irnn_cat_h = self.irnn_cat(flat, self.prev_irnn_cat_h)

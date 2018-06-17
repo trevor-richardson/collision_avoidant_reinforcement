@@ -30,9 +30,9 @@ class IRNNCell(nn.Module):
 
     def forward(self, X_t, h_t_previous):
 
-
         out = F.relu(
             torch.mm(X_t, self.W_x) + torch.mm(h_t_previous, self.U_h) + self.b
         )
+
 
         return out
