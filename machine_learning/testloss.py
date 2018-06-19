@@ -118,6 +118,8 @@ parser.add_argument('--validation_iterations', type=int, default=50,
                     help='Number of times to run validation')
 parser.add_argument('--exp_num', type=int, default=0, metavar='N',
                     help='This is to seperate models saved and the results from training')
+parser.add_argument('--model_dir', type=str, default='./', metavar='N',
+                    help='This is to seperate models saved and the results from training')
 args = parser.parse_args()
 
 rgb_shape = (3, 64, 64)
@@ -237,7 +239,7 @@ def main():
     global dd_optimizer
     results_lst = []
     #populate list of models and order them
-    models_dir = '/home/trevor/coding/robotic_pain/pain_data/rl_models_results/exp_0/1_models/'
+    models_dir = args.model_dir
     models_lst = [f for f in listdir(models_dir) if isfile(join(models_dir, f))]
     model_path = []
     for indx, element in enumerate(models_lst):
@@ -257,14 +259,19 @@ def main():
 
         for inner_index in range(args.validation_iterations):
             states = execute_exp(ca_model, pn_model, 0, 1, args.policy_inp_type, args.use_ca)
+            if args.policy_inp_type == 3:
+                pn_model.reset(1)
+            pn_optimizer.zero_grad()
             collision_detector = determine_reward_val(dd_model, pn_model, states[0], args.num_forward_passes)
+            dd_optimizer.zero_grad()
+            if args.policy_inp_type ==3:
+                pn_model.reset(1)
             if collision_detector > 0:
                 print("Hit")
                 count+=1
             else:
                 print("Miss")
 
-            dd_optimizer.zero_grad()
             ca_optimizer.zero_grad()
             pn_optimizer.zero_grad()
             del(pn_model.saved_log_probs[:])
@@ -273,7 +280,8 @@ def main():
 
         print("count ", count)
         results_lst.append([int(models_lst[index][1:][:-4][2:]), count])
-    np.save("validation_results", np.asarray(results_lst))
+        print(results_lst[-1])
+        np.save(str(args.exp_num), np.asarray(results_lst))
 
 
 if __name__ == '__main__':

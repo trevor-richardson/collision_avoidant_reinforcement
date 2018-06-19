@@ -80,8 +80,8 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type, use_ca):
                 if use_ca:
                     torch_vid = torch.from_numpy(np.transpose(np.expand_dims((list_of_images[-1]).astype('float'),axis=0), (0, 3, 1, 2)))
                     torch_st = torch.from_numpy(np.asarray(collector[-1]).astype('float'))
-                    vid_to_ca = Variable(torch_vid.float().cuda())
-                    st_to_ca = Variable(torch_st.float().cuda())
+                    vid_to_ca = Variable(torch_vid.float().cuda(), volatile=True)
+                    st_to_ca = Variable(torch_st.float().cuda(), volatile=True)
                     output, vid_states, st_states = ca_model(vid_to_ca, st_to_ca, vid_states, st_states)
                     output.detach_()
 
@@ -105,17 +105,17 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type, use_ca):
                             input_to_model = torch.cat([a, b, c, d])
                         else:
                             input_to_model = torch.cat([a, b, c])
-                    input_to_model = Variable(input_to_model)
+                    input_to_model = Variable(input_to_model, volatile=True)
                     out = pn_model(input_to_model)
                 elif input_type == 1:
                     pn_vid = torch.from_numpy(np.transpose(np.expand_dims((list_of_images[-1]).astype('float'),axis=0), (0, 3, 1, 2)))
-                    vid_input = Variable(pn_vid.float().cuda())
+                    vid_input = Variable(pn_vid.float().cuda(), volatile=True)
                     c = torch.from_numpy(np.asarray(collector[-1]).astype('float')).float().cuda()
                     if use_ca:
                         d = torch.squeeze(output.data).float().cuda()
-                        st_input = Variable(torch.cat([c, d]).unsqueeze(0))
+                        st_input = Variable(torch.cat([c, d]).unsqueeze(0), volatile=True)
                     else:
-                        st_input = Variable(c.unsqueeze(0))
+                        st_input = Variable(c.unsqueeze(0), volatile=True)
                     out, pn_vidstates, pn_ststates = pn_model(vid_input, st_input, pn_vidstates, pn_ststates)
                 elif input_type == 2 or input_type==3:
                     #stack two images together and I need to verify the images being stacked are reasonable
@@ -123,24 +123,24 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type, use_ca):
                         stacked_img = np.concatenate(
                             (np.transpose(np.expand_dims((list_of_images[-1]).astype('float'),axis=0), (0, 3, 1, 2)),
                             np.transpose(np.expand_dims((list_of_images[-1]).astype('float'),axis=0), (0, 3, 1, 2))), axis=1)
-                        vid_input = Variable(torch.from_numpy(stacked_img).float().cuda())
+                        vid_input = Variable(torch.from_numpy(stacked_img).float().cuda(), volatile=True)
                         c = torch.from_numpy(np.asarray(collector[-1]).astype('float')).float().cuda()
                         if use_ca:
                             d = torch.squeeze(output.data).float().cuda()
-                            st_input = Variable(torch.cat([c, d]).unsqueeze(0))
+                            st_input = Variable(torch.cat([c, d]).unsqueeze(0), volatile=True)
                         else:
-                            st_input = Variable(c.unsqueeze(0))
+                            st_input = Variable(c.unsqueeze(0), volatile=True)
                     else:
                         stacked_img = np.concatenate(
                             (np.transpose(np.expand_dims((list_of_images[-1]).astype('float'),axis=0), (0, 3, 1, 2)),
                             np.transpose(np.expand_dims((list_of_images[-2]).astype('float'),axis=0), (0, 3, 1, 2))), axis=1)
-                        vid_input = Variable(torch.from_numpy(stacked_img).float().cuda())
+                        vid_input = Variable(torch.from_numpy(stacked_img).float().cuda(), volatile=True)
                         c = torch.from_numpy(np.asarray(collector[-1]).astype('float')).float().cuda()
                         if use_ca:
                             d = torch.squeeze(output.data).float().cuda()
-                            st_input = Variable(torch.cat([c, d]).unsqueeze(0))
+                            st_input = Variable(torch.cat([c, d]).unsqueeze(0), volatile=True)
                         else:
-                            st_input = Variable(c.unsqueeze(0))
+                            st_input = Variable(c.unsqueeze(0), volatile=True)
                     out = pn_model(st_input, vid_input)
 
                 else:
@@ -148,7 +148,7 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type, use_ca):
                     sys.exit()
 
                 action = out.max(1)[1]
-                
+
                 velo = (action -2)  * 15
                 return_val = vrep.simxSetJointTargetVelocity(clientID, left_handle, velo, vrep.simx_opmode_oneshot)
                 return_val2 = vrep.simxSetJointTargetVelocity(clientID, right_handle, velo, vrep.simx_opmode_oneshot_wait)
@@ -170,21 +170,21 @@ def view_image(image, name):
 
 def create_convlstm_states(shape, batch):
     if torch.cuda.is_available():
-        c = Variable(torch.zeros(batch, shape[0], shape[1], shape[2])).float().cuda()
-        h = Variable(torch.zeros(batch, shape[0], shape[1], shape[2])).float().cuda()
+        c = Variable(torch.zeros(batch, shape[0], shape[1], shape[2]), volatile=True).float().cuda()
+        h = Variable(torch.zeros(batch, shape[0], shape[1], shape[2]), volatile=True).float().cuda()
     else:
-        c = Variable(torch.zeros(batch, shape[0], shape[1], shape[2])).float()
-        h = Variable(torch.zeros(batch, shape[0], shape[1], shape[2])).float()
+        c = Variable(torch.zeros(batch, shape[0], shape[1], shape[2]), volatile=True).float()
+        h = Variable(torch.zeros(batch, shape[0], shape[1], shape[2]), volatile=True).float()
     return (h, c)
 
 def create_lstm_states(shape, batch):
 
     if torch.cuda.is_available():
-        c = Variable(torch.zeros(batch, shape).float().cuda())
-        h = Variable(torch.zeros(batch, shape).float().cuda())
+        c = Variable(torch.zeros(batch, shape).float().cuda(), volatile=True)
+        h = Variable(torch.zeros(batch, shape).float().cuda(), volatile=True)
     else:
-        c = Variable(torch.zeros(batch, shape).float())
-        h = Variable(torch.zeros(batch, shape).float())
+        c = Variable(torch.zeros(batch, shape).float(), volatile=True)
+        h = Variable(torch.zeros(batch, shape).float(), volatile=True)
     return (h, c)
 
 def create_recurrent_states(model, batch):
@@ -205,13 +205,13 @@ def create_recurrent_states(model, batch):
 def single_simulation_noca(pn_model, n_iter, txt_file_counter, inp_type):
 
     if inp_type == 0:
-        input_pn = Variable(torch.from_numpy(np.zeros(64*64*3*2+13)).float().cuda())
+        input_pn = Variable(torch.from_numpy(np.zeros(64*64*3*2+13)).float().cuda(), volatile=True)
         pn_model(input_pn)
         states = []
 
     elif inp_type == 1:
-        vid_input_to_pn = Variable(torch.from_numpy(np.zeros((1, 3, 64, 64))).float().cuda())
-        st_input_to_pn = Variable(torch.from_numpy(np.zeros((1, 13))).float().cuda())
+        vid_input_to_pn = Variable(torch.from_numpy(np.zeros((1, 3, 64, 64))).float().cuda(), volatile=True)
+        st_input_to_pn = Variable(torch.from_numpy(np.zeros((1, 13))).float().cuda(), volatile=True)
 
         pn_vid_states, pn_st_states = create_recurrent_states(pn_model, 1)
         pn_model(vid_input_to_pn, st_input_to_pn, pn_vid_states, pn_st_states)
@@ -219,15 +219,15 @@ def single_simulation_noca(pn_model, n_iter, txt_file_counter, inp_type):
         states = [pn_vid_states, pn_st_states]
 
     elif inp_type == 2:
-        vid_input_to_pn = Variable(torch.from_numpy(np.zeros((1, 6, 64, 64))).float().cuda())
-        st_input_to_pn = Variable(torch.from_numpy(np.zeros((1, 13))).float().cuda())
+        vid_input_to_pn = Variable(torch.from_numpy(np.zeros((1, 6, 64, 64))).float().cuda(), volatile=True)
+        st_input_to_pn = Variable(torch.from_numpy(np.zeros((1, 13))).float().cuda(), volatile=True)
 
         pn_model(st_input_to_pn, vid_input_to_pn)
         states = []
 
     elif inp_type == 3:
-        vid_input_to_pn = Variable(torch.from_numpy(np.zeros((1, 6, 64, 64))).float().cuda())
-        st_input_to_pn = Variable(torch.from_numpy(np.zeros((1, 13))).float().cuda())
+        vid_input_to_pn = Variable(torch.from_numpy(np.zeros((1, 6, 64, 64))).float().cuda(), volatile=True)
+        st_input_to_pn = Variable(torch.from_numpy(np.zeros((1, 13))).float().cuda(), volatile=True)
 
         pn_model(st_input_to_pn, vid_input_to_pn)
         states = []
@@ -244,27 +244,27 @@ def single_simulation_noca(pn_model, n_iter, txt_file_counter, inp_type):
 
 def single_simulation(ca_model, pn_model, n_iter, txt_file_counter, inp_type):
 
-    vid_input_to_model = Variable(torch.from_numpy(np.zeros((1, 3, 64, 64))).float().cuda())
-    st_input_to_model = Variable(torch.from_numpy(np.zeros(10)).float().cuda())
+    vid_input_to_model = Variable(torch.from_numpy(np.zeros((1, 3, 64, 64))).float().cuda(), volatile=True)
+    st_input_to_model = Variable(torch.from_numpy(np.zeros(10)).float().cuda(), volatile=True)
     vid_states, st_states = create_recurrent_states(ca_model, 1)
     ca_model(vid_input_to_model, st_input_to_model, vid_states, st_states)
 
     if inp_type == 0:
-        input_pn = Variable(torch.from_numpy(np.zeros(64*64*3*2+10+13)).float().cuda())
+        input_pn = Variable(torch.from_numpy(np.zeros(64*64*3*2+10+13)).float().cuda(), volatile=True)
 
         pn_model(input_pn)
         states = [vid_states, st_states]
     elif inp_type == 1:
-        vid_input_to_pn = Variable(torch.from_numpy(np.zeros((1, 3, 64, 64))).float().cuda())
-        st_input_to_pn = Variable(torch.from_numpy(np.zeros((1, 23))).float().cuda())
+        vid_input_to_pn = Variable(torch.from_numpy(np.zeros((1, 3, 64, 64))).float().cuda(), volatile=True)
+        st_input_to_pn = Variable(torch.from_numpy(np.zeros((1, 23))).float().cuda(), volatile=True)
 
         pn_vid_states, pn_st_states = create_recurrent_states(pn_model, 1)
         pn_model(vid_input_to_pn, st_input_to_pn, pn_vid_states, pn_st_states)
 
         states = [pn_vid_states, pn_st_states, vid_states, st_states]
     elif inp_type == 2 or inp_type == 3:
-        vid_input_to_pn = Variable(torch.from_numpy(np.zeros((1, 6, 64, 64))).float().cuda())
-        st_input_to_pn = Variable(torch.from_numpy(np.zeros((1, 23))).float().cuda())
+        vid_input_to_pn = Variable(torch.from_numpy(np.zeros((1, 6, 64, 64))).float().cuda(), volatile=True)
+        st_input_to_pn = Variable(torch.from_numpy(np.zeros((1, 23))).float().cuda(), volatile=True)
 
         pn_model(st_input_to_pn, vid_input_to_pn)
 
