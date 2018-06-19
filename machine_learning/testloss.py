@@ -114,7 +114,7 @@ parser.add_argument('--update_size', type=int, default=32, metavar='N',
                     help='Number of trials a specific policy is run on before we train our models (default 100)')
 parser.add_argument('--use_ca', type=str2bool, nargs='?', default=True,
                     help='Whether or not to use pretrained collision anticpation model')
-parser.add_argument('--validation_iterations', type=int, default=50,
+parser.add_argument('--validation_iterations', type=int, default=20,
                     help='Number of times to run validation')
 parser.add_argument('--exp_num', type=int, default=0, metavar='N',
                     help='This is to seperate models saved and the results from training')
@@ -243,8 +243,10 @@ def main():
     models_lst = [f for f in listdir(models_dir) if isfile(join(models_dir, f))]
     model_path = []
     for indx, element in enumerate(models_lst):
-        model_path.append(models_dir + element)
-
+        if element[-3:] == 'npy':
+            print("element is found")
+        else:
+            model_path.append(models_dir + element)
 
     for index, model in enumerate(model_path):
         load_pn_model(model)
@@ -281,7 +283,7 @@ def main():
         print("count ", count)
         results_lst.append([int(models_lst[index][1:][:-4][2:]), count])
         print(results_lst[-1])
-        np.save(str(args.exp_num), np.asarray(results_lst))
+    np.save(str(args.exp_num), np.asarray(results_lst))
 
 
 if __name__ == '__main__':
