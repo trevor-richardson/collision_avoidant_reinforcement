@@ -49,10 +49,8 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type, use_ca):
     if clientID!=-1:
         err, tracer_handle = vrep.simxGetObjectHandle(clientID, 'LineTracer', vrep.simx_opmode_oneshot_wait)
         res,v0=vrep.simxGetObjectHandle(clientID,'Vision_sensor',vrep.simx_opmode_oneshot_wait)
-        res,v1=vrep.simxGetObjectHandle(clientID,'PassiveVision_sensor',vrep.simx_opmode_oneshot_wait)
         ret_code, left_handle = vrep.simxGetObjectHandle(clientID,'DynamicLeftJoint', vrep.simx_opmode_oneshot_wait)
         ret_code, right_handle = vrep.simxGetObjectHandle(clientID,'DynamicRightJoint', vrep.simx_opmode_oneshot_wait)
-        ret_code, base_handle = vrep.simxGetObjectHandle(clientID, 'LineTracerBase', vrep.simx_opmode_oneshot_wait)
 
         res,resolution,image=vrep.simxGetVisionSensorImage(clientID,v0,0,vrep.simx_opmode_streaming)
         ret_code, euler_angles = vrep.simxGetObjectOrientation(clientID, tracer_handle, -1, vrep.simx_opmode_streaming)

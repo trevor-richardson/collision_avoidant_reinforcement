@@ -238,23 +238,13 @@ def main():
     global dd_model
     global dd_optimizer
     results_lst = []
-    #populate list of models and order them
-    # models_dir = args.model_dir
-    # models_lst = [f for f in listdir(models_dir) if isfile(join(models_dir, f))]
-    # model_path = []
-    # for indx, element in enumerate(models_lst):
-    #     model_path.append(models_dir + element)
 
-    #get the right model and load
-    # load_pn_model(model)
-    model_path = '/home/trevor/coding/robotic_pain/pain_data/rl_models_results/exp_0/1_models/2pn22.pth'
+    model_path = '/home/trevor/coding/robotic_pain/collision_avoidant_reinforcement/machine_learning/saved_models/best_models/exp_1/2pn63.pth'
     load_pn_model(model_path)
-    args.models_dir = '/home/trevor/coding/robotic_pain/pain_data/rl_models_results/exp_0/1_models/'
-    for index in range(1):
+    for index in range(10):
 
         count = 0
-
-        for inner_index in range(2):
+        for inner_index in range(50):
             states = execute_exp(ca_model, pn_model, 0, 1, args.policy_inp_type, args.use_ca)
             pn_optimizer.zero_grad()
             collision_detector = determine_reward_val(dd_model, pn_model, states[0], args.num_forward_passes)
@@ -274,10 +264,8 @@ def main():
             del(pn_model.reset_locations[:])
 
         print("count ", count)
-        results_lst.append([int(index), count])
-        print(results_lst)
-    print(args.model_dir + "validation_results")
-    np.save(args.model_dir + "validation_results", np.asarray(results_lst))
+        results_lst.append([index, count])
+    np.save("convpn_validation_results", np.asarray(results_lst))
 
 
 if __name__ == '__main__':

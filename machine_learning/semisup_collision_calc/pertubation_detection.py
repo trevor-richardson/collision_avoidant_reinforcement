@@ -146,7 +146,6 @@ def determine_reward_no_repeat(dd_model, pn_model, data, num_forward_passes, onl
         #         rew[i] = 0
         #     else:
         #         rew[i] = -1
-    print("\n\nreward ", rew, " reward\n\n")
 
     if only_hits:
         if min(rew) == -1:

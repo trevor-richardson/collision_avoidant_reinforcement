@@ -56,7 +56,7 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type, use_ca):
 
         res,resolution,image=vrep.simxGetVisionSensorImage(clientID,v0,0,vrep.simx_opmode_streaming)
         ret_code, euler_angles = vrep.simxGetObjectOrientation(clientID, tracer_handle, -1, vrep.simx_opmode_streaming)
-        t_end = time.time() + 4.8
+        t_end = time.time() + 5.2
         count = 0
         action = 0
         inference_counter = 0

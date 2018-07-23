@@ -240,12 +240,12 @@ def update_policy_network(model, optimizer):
         rewards.insert(0, R)
         counter = counter -1
     rewards = torch.Tensor(rewards)
-    total_rew = rewards.sum()
 
+    rewards = (rewards - rewards.mean()) / (rewards.std() + eps)
 
     for log_prob, reward in zip(model.saved_log_probs, rewards):
         policy_loss.append(-log_prob * reward)
-    policy_loss = torch.cat(policy_loss).sum() / len(rewards)  #normalize or scale gradient by total steps
+    policy_loss = torch.cat(policy_loss).sum()  #normalize or scale gradient by total steps
     policy_loss.backward()
     optimizer.step()
     del model.rewards[:]
@@ -253,7 +253,7 @@ def update_policy_network(model, optimizer):
     del model.saved_log_probs[:]
     del model.current_log_probs[:]
     optimizer.zero_grad()
-    return total_rew
+    return rewards.sum()
 
 load_ca_model()
 load_dd_model()
