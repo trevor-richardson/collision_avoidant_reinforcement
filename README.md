@@ -10,8 +10,8 @@ This repository implements and explores a new way to train policy gradient algor
 ---
 
 ### Installing
-Change base_dir in config.ini to the absolute path of the current directory. <br/>
-Packages needed to run the code.
+Change BASE_DIR in config.ini to the absolute path of the current directory. <br/>
+Packages needed to run the code include:
 * numpy
 * scipy
 * python3
