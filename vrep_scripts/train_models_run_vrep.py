@@ -61,6 +61,8 @@ def collectImageData(ca_model, pn_model, clientID, states, input_type, use_ca):
         tim = 0
 
         while (vrep.simxGetConnectionId(clientID)!=-1 and time.time() < t_end):
+            print(time.time() - tim)
+            tim = time.time()
             res,resolution,image=vrep.simxGetVisionSensorImage(clientID,v0,0,vrep.simx_opmode_buffer)
 
             if res==vrep.simx_return_ok:

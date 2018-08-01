@@ -137,6 +137,7 @@ def determine_reward_no_repeat(dd_model, pn_model, data, num_forward_passes, onl
             rew[i] = -1
         else:
             rew[i] = 0
+    print(rew)
 
         # if rew[i] < high:
         #     rew[i] = 0
