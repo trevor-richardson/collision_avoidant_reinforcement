@@ -15,7 +15,9 @@ python train.py --use_ca=True --policy_inp_type=3
 ```
 <br/>
 <br/>
+
 Demo intrinsic-RL policy gradient method with no collision anticipation and a ConvLSTM network structure.
+
 ```
 python demo_model.py --use_ca=False --policy_inp_type=1
 ```
